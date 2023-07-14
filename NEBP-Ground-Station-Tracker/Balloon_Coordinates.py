@@ -1,6 +1,7 @@
 """
 -------------------------------------------------------------------------------
 MIT License
+Copyright (c) 2023 Jeremy Snyder
 Copyright (c) 2021 Ronnel Walton
 Modified: Mathew Clutter
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,14 +21,163 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 -------------------------------------------------------------------------------
 """
-from calendar import timegm
-
-import requests
-import time
 import sys
+import time
+from calendar import timegm
+import requests
+from requests.adapters import HTTPAdapter, Retry
+from urllib3.exceptions import MaxRetryError
+import csv
+from pathlib import Path
+
+class Balloon_Coordinates_APRS:
+    def __init__(self, callsign:str, apikey:str):
+
+        self.callsign = callsign
+        self.apikey = apikey
+
+        self.latest_time = 0
+        self.last_time = 0
+        self.coor_alt = [0, 0, 0]
+        self.last_coor_alt = [0, 0, 0]
+
+        self.APRSfi_sess = requests.Session()
+        self.APRSfi_sess.headers.update({
+            "User-Agent": "UMDBPP_NEBP_GS_Tracker/0.1 (+https://github.com/UMDBPP/NEBP-Ground-Station-Tracker)"
+        })
+        self.APRSfi_sess.mount("https://", HTTPAdapter(max_retries=Retry(
+            total=3,
+            backoff_factor=0.2,
+            status_forcelist=[500, 502, 503, 504]
+        )))
+
+        reqTest = Balloon_Coordinates_APRS.__req_packet__(self)
+        if(isinstance(reqTest, str)):
+            print("\nPossible network connection problem or API failure response.\nExiting...")
+            SystemExit(reqTest)
+
+        print("Balloon_Coordinates_APRS successfully initialized")
+        return
 
 
-class Balloon_Coordinates:
+    # Return a list of callsigns in the APRS_Callsigns.csv file
+    @staticmethod
+    def list_callsigns():
+        # Create path from executing file (this file) directory to CSV file in data directory
+        dataPath = Path(__file__).parent / "../data/APRS_Callsigns.csv"
+
+        try:
+            with dataPath.open() as file:
+                callsignsCSV = csv.reader(file)
+                callsignList = []
+
+                for line in callsignsCSV:
+                    for callsign in line:
+                        callsignList.append(callsign)
+
+                return callsignList
+            
+        except IOError:
+            print("Could not read file: ", dataPath.name)
+            return []
+    
+
+    # Returns the json object of the latest APRS packet.
+    def __req_packet__(self):
+        # Send request and deal with standard network/connection errors.
+        # At the moment, any exceptions here will just print the error and return an empty list,
+        # but they could (and should) be handled separately later.
+        try:
+            # Get latest APRS packet
+            req = self.APRSfi_sess.get("https://api.aprs.fi/api/get?name={}&what=loc&apikey={}&format=json".format(self.callsign, self.apikey), timeout=2)
+            req.raise_for_status() # Raise an HTTPError exception for bad HTTP status codes
+        except requests.exceptions.ConnectionError as e:
+            # Some kind of network problem
+            print("Request Connection Error:")
+            print(e)
+            return e.strerror
+        except requests.exceptions.Timeout as e:
+            # Request timed out
+            print("Request Timeout:")
+            print(e)
+            return e.strerror
+        except MaxRetryError as e:
+            # Too many retries
+            print("Too many retries:")
+            print(e)
+            return str(e.reason) # Not sure what to do with the nested exception
+        except requests.exceptions.HTTPError as e:
+            # Some kind of HTTP error (e.g. 404)
+            print("Request HTTP Error:")
+            print(e)
+            return e.strerror
+        except requests.exceptions.RequestException as e:
+            # Some other request problem
+            print("Request Exception:")
+            print(e)
+            return e.strerror
+                
+        # Presumably, some kind of proper response from the server at this point
+        reqData = req.json()
+
+        # Handle APRS.fi API-specific errors
+        if(reqData["result"] == "fail"):
+            print("APRS.fi API error: ", reqData["description"])
+            return reqData["description"]
+        
+        return reqData
+        
+
+    # Return a list of lat, long, and alt from latest APRS packet
+    def get_coor_alt(self):
+        # Request packet
+        reqData = Balloon_Coordinates_APRS.__req_packet__(self)
+
+        if(reqData == []):
+            # Some kind of problem with getting the packet
+            return []
+
+        # Save last location and time
+        self.last_coor_alt = self.coor_alt
+        self.last_time = self.latest_time
+
+        # Record current location
+        self.coor_alt = [float(reqData["entries"][0]["lat"]),
+                         float(reqData["entries"][0]["lng"]),
+                         float(reqData["entries"][0]["altitude"])]
+        # Record the last time this position was reported
+        self.latest_time = int(reqData["entries"][0]["lasttime"])
+        print(self.coor_alt)
+
+        return self.coor_alt  # [lat, long, altitude]
+
+
+    def print_info(self):
+        # prints the latest lat, long and alt of the balloon
+        self.get_coor_alt()
+        latest_tm = time.gmtime(self.latest_time)
+        print("Callsign: ", self.callsign)
+        print("Date: {}-{}-{}".format(latest_tm[0], latest_tm[1], latest_tm[2]))
+        print("Coordinates: ({}, {})".format(self.coor_alt[0], self.coor_alt[1]))
+        print("Altitude: {}".format(self.coor_alt[2]))
+
+        infoStr = "Callsign: " + self.callsign + " Date: {}-{}-{}".format(latest_tm[0], latest_tm[1], latest_tm[2])
+        infoStr += "\n" + "Coordinates: ({}, {}) Altitude: {}".format(self.coor_alt[0], self.coor_alt[1], self.coor_alt[2])
+        infoStr += "\n Balloon Selected!"
+        return infoStr
+
+
+    def getTimeDiff(self):
+        # finds the difference in time between the latest ping and the one before
+        print(self.last_time)
+
+        print(self.latest_time - self.last_time);
+        return self.latest_time - self.last_time
+
+    pass
+
+
+class Balloon_Coordinates_Borealis:
     BOREALIS_EPOCH = 1357023600
 
     def __init__(self, imei):
@@ -44,7 +194,7 @@ class Balloon_Coordinates:
         self.latest_flight = req.json()[-1]
 
         # Define UID
-        flightTime = timegm(time.strptime(self.latest_flight, "%Y-%m-%d")) - Balloon_Coordinates.BOREALIS_EPOCH
+        flightTime = timegm(time.strptime(self.latest_flight, "%Y-%m-%d")) - Balloon_Coordinates_Borealis.BOREALIS_EPOCH
         self.uid = (int(flightTime) << 24) | int(self.imei[8:])
 
         return
@@ -117,142 +267,3 @@ class Balloon_Coordinates:
 
     pass
 
-
-# import requests
-# import time
-#
-#
-# class Balloon_Coordinates:
-#     BOREALIS_EPOCH = 1357023600
-#
-#     def __init__(self, imei):
-#         self.borealis_route = True
-#
-#         self.imei = imei
-#         self.coor_alt = []
-#
-#         try:
-#             # Grab and Define IMEI's Latest Flight
-#             req = requests.get("https://borealis.rci.montana.edu/meta/flights?imei={}".format(self.imei))
-#             self.latest_flight = req.json()[-1]
-#
-#             # Define UID
-#             flightTime = int(
-#                 time.mktime(time.strptime(self.latest_flight, "%Y-%m-%d")) - 21600 - Balloon_Coordinates.BOREALIS_EPOCH)
-#             self.uid = (int(flightTime) << 24) | int(self.imei[8:])
-#         except:
-#             self.borealis_route = False
-#             latestFound = False
-#             days = 0
-#             while not latestFound:
-#                 print(days)
-#                 day_countdown = time.gmtime(time.time() - (60 * 60 * 24 * days))
-#                 # print(day_countdown)
-#                 date_format = str(time.strftime("%Y-%m-%d", day_countdown))
-#                 print(date_format)
-#                 monthRemove = False
-#                 if date_format[5].find('0') != -1:
-#                     date_format = date_format[:5] + date_format[6:]
-#                     monthRemove = True
-#                     print("hello")
-#                     if str(date_format[7]).find('0') != -1:
-#                         print("hi")
-#                         date_format = date_format[:7] + date_format[8:]
-#                         print("works here")
-#                         print(date_format)
-#                 try:
-#                     if not monthRemove and str(date_format[8]).find('0') != -1:
-#                         date_format = date_format[:8] + date_format[9:]
-#                 except:
-#                     pass
-#                 print(date_format)
-#                 #date_format = date_format[8].replace("0","")
-#                 dayBool = str(requests.get(
-#                         "http://eclipse.rci.montana.edu/php/getTable.php?rLim=1000000&fltDate={}&imei={}".format(
-#                                 date_format, self.imei)).text).find(
-#                         str(self.imei)) != -1
-#                 print(date_format)
-#                 print(dayBool)
-#                 if dayBool:
-#                     self.latest_flight = date_format
-#
-#                     latestFound = True
-#                 else:
-#                     days += 1
-#
-#             #self.latest_flight = "2021-7-30"
-#
-#         return
-#
-#     @staticmethod
-#     def list_IMEI():
-#         IMEIs = []
-#         try :
-#             # Request IMEI List
-#             req = requests.get('https://borealis.rci.montana.edu/meta/imeis')
-#             data = req.json()
-#
-#             for imei in data:
-#                 IMEIs.append(imei)
-#         except:
-#             IMEIs = []
-#         return IMEIs
-#
-#     def get_coor_alt(self):
-#         if self.borealis_route:
-#             req = requests.get("https://borealis.rci.montana.edu/flight?uid={}".format(self.uid))
-#             data = req.json()
-#             # Lat, Long, Alt
-#             self.coor_alt = [data['data'][-1][3], data['data'][-1][4], data['data'][-1][5]]
-#         else:
-#             print("in else")
-#             print(self.latest_flight)
-#             req = requests.get(
-#                 "http://eclipse.rci.montana.edu/php/getTable.php?rLim=1000000&fltDate={}&imei={}".format(self.latest_flight,
-#                                                                                             self.imei))
-#             print("After req")
-#             # print(req.text)
-#             dataRaw = req.text.split(str(self.imei))[1]
-#             # print(dataRaw)
-#             self.coor_alt = []
-#             for index in range(6, 11, 2):
-#                 self.coor_alt.append(float(dataRaw.split(">")[index].split("<")[0].replace(",", "")))
-#             print("After Grab")
-#         return self.coor_alt
-#
-#     def print_info(self):
-#         self.get_coor_alt()
-#         print("IMEI: ", self.imei)
-#         print("Date:", self.latest_flight)
-#         print("Coordinates: (", self.coor_alt[0], ", ", self.coor_alt[1], ")")
-#         print("Altitude: ", self.coor_alt[2])
-#
-#         infoStr = "IMEI: " + self.imei + " Date: " + self.latest_flight
-#         infoStr += "\n" + "Coordinates: (" + str(self.coor_alt[0]) + ", " + str(
-#             self.coor_alt[1]) + ")" + " Altitude: " + str(self.coor_alt[2])
-#         infoStr += "\n Balloon Selected!"
-#         return infoStr
-#
-#     def getTimeDiff(self):
-#         lastTime = []
-#         if self.borealis_route:
-#             req = requests.get("https://borealis.rci.montana.edu/flight?uid={}".format(self.uid))
-#             data = req.json()
-#
-#             lastTime = [data['data'][-1][2], data['data'][-2][2]]
-#
-#
-#             # return lastTime[0] - lastTime[1]
-#         else:
-#             req = requests.get(
-#                 "http://eclipse.rci.montana.edu/php/getTable.php?rLim=1000000&fltDate={}&imei={}".format(self.latest_flight,
-#                                                                                             self.imei))
-#             for index in range(1, 3, 1):
-#                 lastTime.append(time.mktime(time.strptime(str(req.text.split(str(self.imei))[index].split(">")[2].split("<")[0]), "%H:%M:%S")))
-#
-#         print(lastTime[0] - lastTime[1])
-#         return lastTime[0] - lastTime[1]
-#
-#     pass
-#
-#

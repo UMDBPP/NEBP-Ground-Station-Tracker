@@ -1,6 +1,7 @@
 """
 -------------------------------------------------------------------------------
 MIT License
+Copyright (c) 2023 Jeremy Snyder
 Copyright (c) 2021 Mathew Clutter
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,14 +27,14 @@ https://pypi.org/project/PyQt5/
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QThread, QObject, pyqtSignal, Qt, pyqtSlot
 from PyQt5.QtWidgets import QCompleter, QApplication, QDesktopWidget
-from designerFile import Ui_MainWindow
+from Ground_Station_GUI import Ui_MainWindow
 import sys
-from Balloon_Coordinates import Balloon_Coordinates
+from Balloon_Coordinates import Balloon_Coordinates_Borealis, Balloon_Coordinates_APRS
 from satelliteTrackingMath import trackMath
 from Ground_Station_Arduino import Ground_Station_Arduino
 import serial.tools.list_ports
 import time
-from pylab import *
+#from pylab import *
 from sunposition import sunpos
 from datetime import datetime
 import csv
@@ -52,10 +53,13 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.setupUi(self)
 
-        self.IMEIList = Balloon_Coordinates.list_IMEI()
+        self.IMEIList = Balloon_Coordinates_Borealis.list_IMEI()
+        self.callsignList = Balloon_Coordinates_APRS.list_callsigns()
 
         self.arduinoConnected = False
         self.IMEIAssigned = False
+        self.callsignAssigned = False
+        self.APRSfiKeyAssigned = False
         self.GSLocationSet = False
         self.calibrated = False
 
@@ -74,32 +78,43 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.startingAzimuth = 0
         self.startingElevation = 0
 
-        self.IMEIComboBox.addItem("")
+        self.Borealis_comboBox_IMEI.addItem("")
         for i in range(len(self.IMEIList)):
-            self.IMEIComboBox.addItem(self.IMEIList[i])
+            self.Borealis_comboBox_IMEI.addItem(self.IMEIList[i])
 
-        completer = QCompleter(self.IMEIList)
-        completer.setFilterMode(Qt.MatchContains)
-        self.IMEIComboBox.setEditable(True)
-        self.IMEIComboBox.setCompleter(completer)
+        completerIMEI = QCompleter(self.IMEIList)
+        completerIMEI.setFilterMode(Qt.MatchContains)
+        self.Borealis_comboBox_IMEI.setEditable(True)
+        self.Borealis_comboBox_IMEI.setCompleter(completerIMEI)
+
+        self.APRS_fi_comboBox_Callsign.addItem("")
+        for i in range(len(self.callsignList)):
+            self.APRS_fi_comboBox_Callsign.addItem(self.callsignList[i])
+
+        completerCallsign = QCompleter(self.callsignList)
+        completerCallsign.setFilterMode(Qt.MatchContains)
+        self.APRS_fi_comboBox_Callsign.setEditable(True)
+        self.APRS_fi_comboBox_Callsign.setCompleter(completerCallsign)
 
         self.ports = None
         self.portNames = []
         self.comPortCounter = 0
         self.refreshArduinoList()
 
-        self.confirmIMEIButton.clicked.connect(self.assignIMEI)
+        self.Borealis_button_ConfirmIMEI.clicked.connect(self.assignIMEI)
+        self.APRS_fi_button_ConfirmCallsign.clicked.connect(self.assignCallsign)
+        self.APRS_fi_button_ConfirmAPIKey.clicked.connect(self.assignAPRSfiKey)
 
         self.GPSRequestButton.clicked.connect(self.getGSLocation)
         self.confirmGSLocationButton.clicked.connect(self.setGSLocation)
 
         self.calibrateButton.clicked.connect(self.calibrate)
 
-        self.refreshCOMPortsButton.clicked.connect(self.refreshArduinoList)
-        self.connectToArduinoButton.clicked.connect(self.connectToArduino)
+        self.Arduino_button_refreshCOMPorts.clicked.connect(self.refreshArduinoList)
+        self.Arduino_button_ConnectArduino.clicked.connect(self.connectToArduino)
 
         self.degreesPerClickBox.setCurrentIndex(1)
-        self.COMPortComboBox.setCurrentIndex(self.comPortCounter - 1)
+        self.Arduino_comboBox_COMPort.setCurrentIndex(self.comPortCounter - 1)
         self.tiltUpButton.clicked.connect(self.tiltUp)
         self.tiltDownButton.clicked.connect(self.tiltDown)
         self.panCounterClockwiseButton.clicked.connect(self.panClockwise)
@@ -108,6 +123,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.calculateStartingPosButton.clicked.connect(self.getStartingPos)
 
         self.backToSunButton.clicked.connect(self.returnToSun)
+        self.backToZeroButton.clicked.connect(self.returnToZero)
 
         self.startButton.clicked.connect(self.checkIfReady)
         self.stopButton.clicked.connect(self.stopTracking)
@@ -128,10 +144,10 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         # this function checks if an IMEI has been selected
         # if an IMEI has been selected, it creates an instance of the balloon coordinates class using the IMEI
         # if an IMEI has not been selected, it simply returns
-        if self.IMEIComboBox.currentIndex() != 0:  # SHOULD BE != FOR BOREALIS WEBSITE!
+        if self.Borealis_comboBox_IMEI.currentIndex() != 0:  # SHOULD BE != FOR BOREALIS WEBSITE!
             self.IMEIAssigned = True
-            print(self.IMEIComboBox.currentText())
-            self.Balloon = Balloon_Coordinates(self.IMEIComboBox.currentText())
+            print(self.Borealis_comboBox_IMEI.currentText())
+            self.Balloon = Balloon_Coordinates_Borealis(self.Borealis_comboBox_IMEI.currentText())
             testStr = self.Balloon.print_info()
             self.statusBox.setPlainText(testStr)
             # self.Balloon.getTimeDiff()
@@ -141,15 +157,50 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             self.IMEIAssigned = False
         return
 
+    def assignCallsign(self):
+        # this function checks if a callsign has been selected
+        # if a callsign has been selected and an API key has been entered, it creates an instance of the balloon coordinates APRS class
+        # if a callsign has not been selected or an API key has not been entered, it simply returns
+        if self.APRS_fi_comboBox_Callsign.currentIndex() != 0:  # SHOULD BE != FOR BOREALIS WEBSITE!
+            self.callsignAssigned = True
+            print(self.APRS_fi_comboBox_Callsign.currentText())
+            if(self.APRSfiKeyAssigned):
+                self.Balloon = Balloon_Coordinates_APRS(self.APRS_fi_comboBox_Callsign.currentText(), self.APRS_fi_lineEdit_APIKey.text())
+                testStr = self.Balloon.print_info()
+                self.statusBox.setPlainText(testStr)
+        else:
+            print("Select a balloon callsign from the list in APRS_Callsigns.csv")
+            self.statusBox.setPlainText("Please select a balloon callsign from those listed in APRS_Callsigns.csv")
+            self.callsignAssigned = False
+        return
+
+    def assignAPRSfiKey(self):
+        # this function checks if an APRS.fi API key has been entered
+        # if an API key has been entered and a callsign has been selected, it creates an instance of the balloon coordinates APRS class
+        # if an API key has not been entered or a callsign has not been selected, it simply returns
+
+        if self.APRS_fi_lineEdit_APIKey.text() != "":
+            self.APRSfiKeyAssigned = True
+            print(self.APRS_fi_lineEdit_APIKey.text())
+            if(self.callsignAssigned):
+                self.Balloon = Balloon_Coordinates_APRS(self.APRS_fi_comboBox_Callsign.currentText(), self.APRS_fi_lineEdit_APIKey.text())
+                testStr = self.Balloon.print_info()
+                self.statusBox.setPlainText(testStr)
+        else:
+            print("Enter an APRS.fi API key")
+            self.statusBox.setPlainText("Please enter an APRS.fi API key")
+            self.APRSfiKeyAssigned = False
+        return
+
     def refreshArduinoList(self):
         # this function searches the list of COM ports, and adds devices that it finds to the COM port combobox
-        self.COMPortComboBox.clear()
+        self.Arduino_comboBox_COMPort.clear()
         self.ports = serial.tools.list_ports.comports()
         self.portNames = []
         self.comPortCounter = 0
         for port, desc, hwid in sorted(self.ports):
-            # self.COMPortComboBox.addItem("[{}] {}: {}".format(i, port, desc))
-            self.COMPortComboBox.addItem(desc)
+            # self.Arduino_comboBox_COMPort.addItem("[{}] {}: {}".format(i, port, desc))
+            self.Arduino_comboBox_COMPort.addItem(desc)
             self.portNames.append("{}".format(port))
             self.comPortCounter += 1
 
@@ -157,8 +208,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         # checks if arduino is selected, and if the connection is not already made, instantiates an instance of
         # the Ground_Station_Arduino class
         # if an arduino is connected, or one is not selected, the function returns
-        if not self.arduinoConnected and self.COMPortComboBox.currentText():
-            self.GSArduino = Ground_Station_Arduino(self.portNames[self.COMPortComboBox.currentIndex()], 9600)
+        if not self.arduinoConnected and self.Arduino_comboBox_COMPort.currentText():
+            self.GSArduino = Ground_Station_Arduino(self.portNames[self.Arduino_comboBox_COMPort.currentIndex()], 9600)
             self.statusBox.setPlainText("connected to arduino!")
             self.arduinoConnected = True
         elif self.arduinoConnected:
@@ -332,6 +383,18 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Cannot point back at the sun")
 
         return
+    
+    def returnToZero(self):
+        if self.arduinoConnected and self.GSLocationSet and self.calibrated:
+            self.GSArduino.move_position(0, 0)
+
+            self.statusBox.setPlainText("at zero position")
+
+        else:
+            self.statusBox.setPlainText("Ensure that arduino is connected, GS location is set and calibration is set")
+            print("Cannot point back at zero position")
+
+        return
 
     def setPredictTrack(self):
         # sets the predict track bool variable
@@ -357,8 +420,15 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         if self.IMEIAssigned:
             print("IMEI assigned")
+        elif self.callsignAssigned:
+            print("Callsign assigned")
+            if self.APRSfiKeyAssigned:
+                print("APRS.fi API key assigned")
+            else:
+                print("APRS.fi API key not assigned")
+                self.statusBox.setPlainText("Please set an APRS.fi API key to use APRS")
         else:
-            print("IMEI not assigned")
+            print("Neither IMEI nor Callsign assigned")
             self.statusBox.setPlainText("Please select a balloon")
 
         if self.arduinoConnected:
@@ -369,7 +439,9 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         print("\n")
 
-        if self.arduinoConnected and self.IMEIAssigned and self.calibrated and self.GSLocationSet:
+        if((self.arduinoConnected and self.IMEIAssigned and self.calibrated and self.GSLocationSet)
+           or (self.arduinoConnected and self.callsignAssigned and self.APRSfiKeyAssigned and self.calibrated and self.GSLocationSet)):
+            
             if self.predictingTrack:
                 self.statusBox.setPlainText("Starting tracking with predictions!")
                 self.callPredictTrack()
