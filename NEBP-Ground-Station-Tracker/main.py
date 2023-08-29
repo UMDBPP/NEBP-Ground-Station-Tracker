@@ -283,9 +283,9 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             self.GSLong = GSCoords[1]
             self.GSAlt = GSCoords[2]
 
-            self.GSLatBox.setPlainText(str(self.GSLat))
-            self.GSLongBox.setPlainText(str(self.GSLong))
-            self.GSAltBox.setPlainText(str(self.GSAlt))
+            self.GSLatBox.setText(str(self.GSLat))
+            self.GSLongBox.setText(str(self.GSLong))
+            self.GSAltBox.setText(str(self.GSAlt))
         else:
             print("arduino not connected")
             self.statusBox.setPlainText("Arduino not connected")
@@ -297,17 +297,17 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         # if the values present can be converted to floats, the starting location of the gs is set
         try:
             if self.arduinoConnected:
-                latStr = self.GSLatBox.toPlainText()
+                latStr = self.GSLatBox.text()
                 latStr = latStr.strip()
                 self.GSLat = float(latStr)
 
                 print(self.GSLat)
 
-                longStr = self.GSLongBox.toPlainText()
+                longStr = self.GSLongBox.text()
                 self.GSLong = float(longStr)
                 print(self.GSLong)
 
-                altStr = self.GSAltBox.toPlainText()
+                altStr = self.GSAltBox.text()
                 self.GSAlt = float(altStr)
                 print(self.GSAlt)
 
@@ -331,8 +331,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             self.startingAzimuth = az
             self.startingElevation = elev
 
-            self.startingAzimuthBox.setPlainText(str(az))
-            self.startingElevationBox.setPlainText(str(elev))
+            self.startingAzimuthBox.setText(str(az))
+            self.startingElevationBox.setText(str(elev))
 
         else:
             self.statusBox.setPlainText("Please set ground station location "
@@ -344,11 +344,11 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         # sends the GSArduino class the starting azimuth and elevation
         if self.arduinoConnected:
             try:
-                startingAzimuthStr = self.startingAzimuthBox.toPlainText()
+                startingAzimuthStr = self.startingAzimuthBox.text()
                 startingAzimuth = float(startingAzimuthStr)
                 print(startingAzimuth)
 
-                startingElevationStr = self.startingElevationBox.toPlainText()
+                startingElevationStr = self.startingElevationBox.text()
                 startingElevation = float(startingElevationStr)
                 print(startingElevation)
 
@@ -374,8 +374,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             self.startingAzimuth = az
             self.startingElevation = elev
 
-            self.startingAzimuthBox.setPlainText(str(self.startingAzimuth))
-            self.startingElevationBox.setPlainText(str(self.startingElevation))
+            self.startingAzimuthBox.setText(str(self.startingAzimuth))
+            self.startingElevationBox.setText(str(self.startingElevation))
             self.statusBox.setPlainText("at new sun position")
 
         else:
@@ -520,9 +520,9 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def displayCalculations(self, distance, azimuth, elevation):
         # this displays the outputs from the tracking threads on the GUI
-        self.distanceDisplay.setPlainText(str(distance))
-        self.azimuthDisplay.setPlainText(str(azimuth))
-        self.elevationDisplay.setPlainText(str(elevation))
+        self.distanceDisplay.setText(str(distance))
+        self.azimuthDisplay.setText(str(azimuth))
+        self.elevationDisplay.setText(str(elevation))
         return
 
 
