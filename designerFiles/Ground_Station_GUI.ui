@@ -106,6 +106,13 @@
              <item row="1" column="0">
               <widget class="QComboBox" name="Borealis_comboBox_IMEI"/>
              </item>
+             <item row="0" column="0">
+              <widget class="QLabel" name="Borealis_label_EnterIMEI">
+               <property name="text">
+                <string>Select or Enter IMEI Below</string>
+               </property>
+              </widget>
+             </item>
              <item row="1" column="1">
               <widget class="QPushButton" name="Borealis_button_ConfirmIMEI">
                <property name="enabled">
@@ -116,10 +123,13 @@
                </property>
               </widget>
              </item>
-             <item row="0" column="0">
-              <widget class="QLabel" name="Borealis_label_EnterIMEI">
+             <item row="1" column="2">
+              <widget class="QPushButton" name="Borealis_button_RefreshIMEI">
+               <property name="enabled">
+                <bool>true</bool>
+               </property>
                <property name="text">
-                <string>Select or Enter IMEI Below</string>
+                <string>Refresh IMEI List</string>
                </property>
               </widget>
              </item>

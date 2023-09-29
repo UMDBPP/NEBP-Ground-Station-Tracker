@@ -54,6 +54,13 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setupUi(self)
 
         self.IMEIList = Balloon_Coordinates_Borealis.list_IMEI()
+        self.Borealis_comboBox_IMEI.addItem("")
+        if self.IMEIList == []:
+            print("Unable to get IMEI list")
+            self.statusBox.setPlainText("Unable to get IMEI list")
+        else:
+            for i in range(len(self.IMEIList)):
+                self.Borealis_comboBox_IMEI.addItem(self.IMEIList[i])
         self.callsignList = Balloon_Coordinates_APRS.list_callsigns()
 
         self.arduinoConnected = False
@@ -78,10 +85,6 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.startingAzimuth = 0
         self.startingElevation = 0
 
-        self.Borealis_comboBox_IMEI.addItem("")
-        for i in range(len(self.IMEIList)):
-            self.Borealis_comboBox_IMEI.addItem(self.IMEIList[i])
-
         completerIMEI = QCompleter(self.IMEIList)
         completerIMEI.setFilterMode(Qt.MatchContains)
         self.Borealis_comboBox_IMEI.setEditable(True)
@@ -101,6 +104,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.comPortCounter = 0
         self.refreshArduinoList()
 
+        self.Borealis_button_RefreshIMEI.clicked.connect(self.refreshIMEI)
         self.Borealis_button_ConfirmIMEI.clicked.connect(self.assignIMEI)
         self.APRS_fi_button_ConfirmCallsign.clicked.connect(self.assignCallsign)
         self.APRS_fi_button_ConfirmAPIKey.clicked.connect(self.assignAPRSfiKey)
@@ -139,6 +143,22 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         # self.showFullScreen()
 
         self.predictingTrack = False
+
+    def refreshIMEI(self):
+        # Refresh the Borealis_comboBox_IMEI IMEI list from the Borealis website
+        print("Refreshing IMEI list")
+        self.statusBox.setPlainText("Refreshing IMEI list")
+        self.IMEIList = Balloon_Coordinates_Borealis.list_IMEI()
+        self.Borealis_comboBox_IMEI.clear()
+        self.Borealis_comboBox_IMEI.addItem("")
+        if self.IMEIList == []:
+            print("Unable to get IMEI list")
+            self.statusBox.setPlainText("Unable to get IMEI list")
+        else:
+            for i in range(len(self.IMEIList)):
+                self.Borealis_comboBox_IMEI.addItem(self.IMEIList[i])
+
+        return
 
     def assignIMEI(self):
         # this function checks if an IMEI has been selected

@@ -204,20 +204,22 @@ class Balloon_Coordinates_Borealis:
     def list_IMEI():
     # grab the list of all of the imei's on the borealis server
 
-        # Request IMEI List
+        IMEIs = []
+
+       # Request IMEI List
         try:
             req = requests.get('https://borealis.rci.montana.edu/meta/imeis')
+            data = req.json()
+            for imei in data:
+                IMEIs.append(imei)
+
         except requests.exceptions.RequestException:
             print("couldn't connect to internet")
             print("Please connect to internet and relaunch")
-            sys.exit(-1)
+            # sys.exit(-1)
 
-        data = req.json()
-        IMEIs = []
-
-        for imei in data:
-            IMEIs.append(imei)
         return IMEIs
+    
 
     def get_coor_alt(self):
         # returns a list containing the lat, long, and alt of the latest ping from the selected IMEI
