@@ -29,7 +29,7 @@ from PyQt5.QtCore import QThread, QObject, pyqtSignal, Qt, pyqtSlot
 from PyQt5.QtWidgets import QCompleter, QApplication, QDesktopWidget
 from Ground_Station_GUI import Ui_MainWindow
 import sys
-from Balloon_Coordinates import Balloon_Coordinates_Borealis, Balloon_Coordinates_APRS
+from Balloon_Coordinates import Balloon_Coordinates_Borealis, Balloon_Coordinates_APRS_fi, Balloon_Coordinates_APRS_IS
 from satelliteTrackingMath import trackMath
 from Ground_Station_Arduino import Ground_Station_Arduino
 import serial.tools.list_ports
@@ -38,9 +38,8 @@ import time
 from sunposition import sunpos
 from datetime import datetime
 import csv
-import statistics
-import numpy as np
-
+# import statistics
+# import numpy as np
 
 # todo: clean up this code and better document
 
@@ -61,7 +60,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         else:
             for i in range(len(self.IMEIList)):
                 self.Borealis_comboBox_IMEI.addItem(self.IMEIList[i])
-        self.callsignList = Balloon_Coordinates_APRS.list_callsigns()
+        self.callsignList = Balloon_Coordinates_APRS_IS.list_callsigns()
 
         self.arduinoConnected = False
         self.IMEIAssigned = False
@@ -98,6 +97,12 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         completerCallsign.setFilterMode(Qt.MatchContains)
         self.APRS_fi_comboBox_Callsign.setEditable(True)
         self.APRS_fi_comboBox_Callsign.setCompleter(completerCallsign)
+        self.APRS_IS_comboBox_Callsign.setEditable(True)
+        self.APRS_IS_comboBox_Callsign.setCompleter(completerCallsign)
+
+        self.APRS_IS_comboBox_Callsign.addItem("")
+        for i in range(len(self.callsignList)):
+            self.APRS_IS_comboBox_Callsign.addItem(self.callsignList[i])
 
         self.ports = None
         self.portNames = []
@@ -106,8 +111,12 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.Borealis_button_RefreshIMEI.clicked.connect(self.refreshIMEI)
         self.Borealis_button_ConfirmIMEI.clicked.connect(self.assignIMEI)
-        self.APRS_fi_button_ConfirmCallsign.clicked.connect(self.assignCallsign)
+        self.APRS_fi_button_ConfirmCallsign.clicked.connect(self.assignCallsign_APRS_fi)
         self.APRS_fi_button_ConfirmAPIKey.clicked.connect(self.assignAPRSfiKey)
+        self.APRS_IS_button_ConfirmCallsign.clicked.connect(self.assignCallsign_APRS_IS)
+        self.APRS_IS_button_ResetConnection.clicked.connect(self.resetConnection_APRS_IS)
+
+        self.Tracking_button_Refresh.clicked.connect(self.refreshTrackingStatus)
 
         self.GPSRequestButton.clicked.connect(self.getGSLocation)
         self.confirmGSLocationButton.clicked.connect(self.setGSLocation)
@@ -157,7 +166,12 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         else:
             for i in range(len(self.IMEIList)):
                 self.Borealis_comboBox_IMEI.addItem(self.IMEIList[i])
+        return
 
+    def refreshTrackingStatus(self):
+        if type(self.Balloon) is not type(None):
+            testStr = self.Balloon.print_info()
+            self.statusBox.setPlainText(testStr)
         return
 
     def assignIMEI(self):
@@ -166,7 +180,10 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         # if an IMEI has not been selected, it simply returns
         if self.Borealis_comboBox_IMEI.currentIndex() != 0:  # SHOULD BE != FOR BOREALIS WEBSITE!
             self.IMEIAssigned = True
-            print(self.Borealis_comboBox_IMEI.currentText())
+            print(self.Borealis_comboBox_IMEI.currentText())        
+            if type(self.Balloon) is not type(None):
+                self.Balloon.stop_updater()
+                time.sleep(1)
             self.Balloon = Balloon_Coordinates_Borealis(self.Borealis_comboBox_IMEI.currentText())
             testStr = self.Balloon.print_info()
             self.statusBox.setPlainText(testStr)
@@ -177,21 +194,50 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             self.IMEIAssigned = False
         return
 
-    def assignCallsign(self):
+    def assignCallsign_APRS_fi(self):
+        self.assignCallsign("APRS.fi")
+        return
+
+    def assignCallsign_APRS_IS(self):
+        self.assignCallsign("APRS-IS")
+        return
+    
+    def assignCallsign(self, service):
         # this function checks if a callsign has been selected
-        # if a callsign has been selected and an API key has been entered, it creates an instance of the balloon coordinates APRS class
-        # if a callsign has not been selected or an API key has not been entered, it simply returns
-        if self.APRS_fi_comboBox_Callsign.currentIndex() != 0:  # SHOULD BE != FOR BOREALIS WEBSITE!
-            self.callsignAssigned = True
-            print(self.APRS_fi_comboBox_Callsign.currentText())
-            if(self.APRSfiKeyAssigned):
-                self.Balloon = Balloon_Coordinates_APRS(self.APRS_fi_comboBox_Callsign.currentText(), self.APRS_fi_lineEdit_APIKey.text())
+        if service == "APRS.fi":
+            # if a callsign has been selected and an API key has been entered, it creates an instance of the balloon coordinates APRS class
+            # if a callsign has not been selected or an API key has not been entered, it simply returns
+            if self.APRS_fi_comboBox_Callsign.currentIndex() != 0:
+                self.callsignAssigned = True
+                print("Assigned callsign: " + str(self.APRS_fi_comboBox_Callsign.currentText()))
+                if(self.APRSfiKeyAssigned):
+                    if type(self.Balloon) is not type(None):
+                        self.Balloon.stop_updater()
+                        time.sleep(1)
+                    self.Balloon = Balloon_Coordinates_APRS_fi(self.APRS_fi_comboBox_Callsign.currentText(), self.APRS_fi_lineEdit_APIKey.text())
+                    testStr = self.Balloon.print_info()
+                    self.statusBox.setPlainText(testStr)
+            else:
+                print("Select a balloon callsign from the list in APRS_Callsigns.csv")
+                self.statusBox.setPlainText("Please select a balloon callsign from those listed in APRS_Callsigns.csv")
+                self.callsignAssigned = False
+        elif service == "APRS-IS":
+            if self.APRS_IS_comboBox_Callsign.currentIndex() != 0:
+                self.callsignAssigned = True
+                print("Assigned callsign: " + str(self.APRS_IS_comboBox_Callsign.currentText()))
+                if type(self.Balloon) is not type(None):
+                    self.Balloon.stop_updater()
+                    time.sleep(1)
+                self.Balloon = Balloon_Coordinates_APRS_IS(self.APRS_IS_comboBox_Callsign.currentText())
                 testStr = self.Balloon.print_info()
                 self.statusBox.setPlainText(testStr)
+            else:
+                print("Select a balloon callsign from the list in APRS_Callsigns.csv")
+                self.statusBox.setPlainText("Please select a balloon callsign from those listed in APRS_Callsigns.csv")
+                self.callsignAssigned = False
         else:
-            print("Select a balloon callsign from the list in APRS_Callsigns.csv")
-            self.statusBox.setPlainText("Please select a balloon callsign from those listed in APRS_Callsigns.csv")
-            self.callsignAssigned = False
+            print("This message should not be seen")
+
         return
 
     def assignAPRSfiKey(self):
@@ -201,9 +247,12 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         if self.APRS_fi_lineEdit_APIKey.text() != "":
             self.APRSfiKeyAssigned = True
-            print(self.APRS_fi_lineEdit_APIKey.text())
+            print("Assigned APRS.fi API key: " + str(self.APRS_fi_lineEdit_APIKey.text()))
             if(self.callsignAssigned):
-                self.Balloon = Balloon_Coordinates_APRS(self.APRS_fi_comboBox_Callsign.currentText(), self.APRS_fi_lineEdit_APIKey.text())
+                if type(self.Balloon) is not type(None):
+                    self.Balloon.stop_updater()
+                    time.sleep(1)
+                self.Balloon = Balloon_Coordinates_APRS_fi(self.APRS_fi_comboBox_Callsign.currentText(), self.APRS_fi_lineEdit_APIKey.text())
                 testStr = self.Balloon.print_info()
                 self.statusBox.setPlainText(testStr)
         else:
@@ -211,6 +260,16 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             self.statusBox.setPlainText("Please enter an APRS.fi API key")
             self.APRSfiKeyAssigned = False
         return
+    
+    def resetConnection_APRS_IS(self):
+        if type(self.Balloon) is Balloon_Coordinates_APRS_IS:
+            self.Balloon.reset_updater()
+            testStr = self.Balloon.print_info()
+            self.statusBox.setPlainText(testStr)
+        else:
+            print("APRS-IS Balloon not initialized")
+            self.statusBox.setPlainText("APRS-IS Balloon not initialized")
+
 
     def refreshArduinoList(self):
         # this function searches the list of COM ports, and adds devices that it finds to the COM port combobox
@@ -442,14 +501,16 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             print("IMEI assigned")
         elif self.callsignAssigned:
             print("Callsign assigned")
-            if self.APRSfiKeyAssigned:
+            if type(self.Balloon) is Balloon_Coordinates_APRS_fi and self.APRSfiKeyAssigned:
                 print("APRS.fi API key assigned")
+            elif type(self.Balloon) is Balloon_Coordinates_APRS_IS:
+                pass
             else:
                 print("APRS.fi API key not assigned")
                 self.statusBox.setPlainText("Please set an APRS.fi API key to use APRS")
         else:
             print("Neither IMEI nor Callsign assigned")
-            self.statusBox.setPlainText("Please select a balloon")
+            self.statusBox.setPlainText("Neither IMEI nor Callsign assigned")
 
         if self.arduinoConnected:
             print("Arduino connected!")
@@ -460,7 +521,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         print("\n")
 
         if((self.arduinoConnected and self.IMEIAssigned and self.calibrated and self.GSLocationSet)
-           or (self.arduinoConnected and self.callsignAssigned and self.APRSfiKeyAssigned and self.calibrated and self.GSLocationSet)):
+           or (self.arduinoConnected and self.callsignAssigned and self.APRSfiKeyAssigned and self.calibrated and self.GSLocationSet)
+           or (self.arduinoConnected and self.callsignAssigned and type(self.Balloon) is Balloon_Coordinates_APRS_IS and self.calibrated and self.GSLocationSet)):
             
             if self.predictingTrack:
                 self.statusBox.setPlainText("Starting tracking with predictions!")
@@ -556,35 +618,36 @@ class Worker(QObject):
 
     def track(self):
         # basic tracking algorithm
-        # checks for updated position every 5 seconds
+        # checks for updated position every second
         # if a new position has been found, calculate the azimuth and elevation to point at the new location
         # send the motors a command to move to the new position
-        timer = time.time() - 4
+        last_Balloon_Coor = [0, 0, 0]
+
         while MainWindow.tracking:
-            if (time.time() - timer) > 5:
-                timer = time.time()
-                Balloon_Coor = MainWindow.Balloon.get_coor_alt()
-                if not Balloon_Coor:
-                    pass
-                else:
-                    # note that trackMath takes arguments as long, lat, altitude
-                    Tracking_Calc = trackMath(MainWindow.GSLong, MainWindow.GSLat, MainWindow.GSAlt, Balloon_Coor[1],
-                                              Balloon_Coor[0], Balloon_Coor[2])
+            Balloon_Coor = MainWindow.Balloon.get_coor_alt()
+            if Balloon_Coor == last_Balloon_Coor:
+                time.sleep(1)
+                continue
+            # note that trackMath takes arguments as long, lat, altitude
+            Tracking_Calc = trackMath(MainWindow.GSLong, MainWindow.GSLat, MainWindow.GSAlt, 
+                                        Balloon_Coor[1], Balloon_Coor[0], Balloon_Coor[2])
 
-                    distance = Tracking_Calc.distance
-                    newElevation = Tracking_Calc.elevation()
-                    newAzimuth = Tracking_Calc.azimuth()
+            distance = Tracking_Calc.distance
+            newElevation = Tracking_Calc.elevation()
+            newAzimuth = Tracking_Calc.azimuth()
 
-                    print(str(self.i) + " Distance " + str(distance) + " Azimuth: " + str(newAzimuth) + ", Elevation: " + str(newElevation))
+            print(str(self.i) + " Distance " + str(distance) + " Azimuth: " + str(newAzimuth) + ", Elevation: " + str(newElevation))
 
-                    self.calcSignal.connect(MainWindow.displayCalculations)  # this seems to happen a lot for some reason
-                    self.calcSignal.emit(distance, newAzimuth, newElevation)
+            self.calcSignal.connect(MainWindow.displayCalculations)  # this seems to happen a lot for some reason
+            self.calcSignal.emit(distance, newAzimuth, newElevation)
 
-                    MainWindow.GSArduino.move_position(newAzimuth, newElevation)
+            MainWindow.GSArduino.move_position(newAzimuth, newElevation)
 
-                    self.i += 1
+            self.i += 1
+            last_Balloon_Coor = Balloon_Coor
 
         print("All done!")
+        print(str(self.i) + " location updates processed")
         self.finished.emit()  # same pycharm bug as above
         return
 

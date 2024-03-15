@@ -29,8 +29,151 @@ from requests.adapters import HTTPAdapter, Retry
 from urllib3.exceptions import MaxRetryError
 import csv
 from pathlib import Path
+import aprs
+import threading
 
-class Balloon_Coordinates_APRS:
+# This entire file should be rewritten to be polymorphic
+
+class Balloon_Coordinates_APRS_IS:
+    def __init__(self, callsign:str):        
+        self.callsign = callsign
+
+        self.latest_time = 0
+        self.last_time = 0
+        self.coor_alt = [0, 0, 0]
+
+        print('Attempting to start position updater...')
+
+        self.stop_thread = threading.Event()
+        self.thread_lock = threading.Lock()
+        self.coor_alt_thread = threading.Thread(target=self.update_coor_alt, daemon=True)
+        self.coor_alt_thread.start()
+
+        time.sleep(1)
+        with self.thread_lock:
+            if self.coor_alt == [0, 0, 0]:
+                time.sleep(4)
+            if self.coor_alt != [0, 0, 0]:
+                print("APRS-IS position update thread started")
+            else:
+                print("Attempted to start position update thread. No positions received yet")
+
+        print("Balloon_Coordinates_APRS_IS successfully initialized")
+        return
+
+
+    def stop_updater(self):
+        if self.coor_alt_thread.is_alive():
+            self.stop_thread.set()
+            print("Waiting for updater to stop...")
+            self.coor_alt_thread.join()
+            print("Updater stopped")
+        else:
+            print("APRS-IS position update thread is not running")
+        return
+
+
+    def reset_updater(self):
+        self.stop_updater()
+
+        with self.thread_lock:
+            old_coor_alt = self.coor_alt
+
+        self.stop_thread.clear()
+        print('Attempting to restart position updater...')
+        self.coor_alt_thread = threading.Thread(target=self.update_coor_alt, daemon=True)
+        self.coor_alt_thread.start()
+
+        time.sleep(1)
+        
+        with self.thread_lock:
+            if self.coor_alt == old_coor_alt:
+                time.sleep(4)
+            if self.coor_alt != old_coor_alt:
+                print("APRS-IS position update thread started")
+            else:
+                print("Attempted to start position update thread. No positions received yet")
+        return
+
+
+    # Return a list of callsigns in the APRS_Callsigns.csv file
+    @staticmethod
+    def list_callsigns():
+        # Create path from executing file (this file) directory to CSV file in data directory
+        dataPath = Path(__file__).parent / "../data/APRS_Callsigns.csv"
+
+        try:
+            with dataPath.open() as file:
+                callsignsCSV = csv.reader(file)
+                callsignList = []
+
+                for line in callsignsCSV:
+                    for callsign in line:
+                        callsignList.append(callsign)
+
+                return callsignList
+            
+        except IOError:
+            print("Could not read file: ", dataPath.name)
+            return []
+    
+
+    def update_coor_alt(self):
+        aprsFilter = "filter p/" + self.callsign
+        # aprsFilter = "filter r/39.0/-76.9/100"
+        # aprsFilter = "filter t/p"
+
+        def __handle_frame(frame):
+            print("\nIncoming frame:")
+            print(frame)
+            with self.thread_lock:
+                self.coor_alt = [frame.info.lat, frame.info.long, frame.info.altitude_ft*0.3048]
+                # self.coor_alt = [float(frame.info.lat), float(frame.info.long), self.coor_alt[2]]
+                print(self.coor_alt)
+
+        with aprs.TCP(host="noam.aprs2.net", port=14580, command=aprsFilter) as aprs_tcp:
+            print("APRS-IS connection initialized")
+            while not self.stop_thread.is_set():
+                aprs_tcp.read(callback=__handle_frame, min_frames=1)
+                
+        print("Thread stopping...")
+        return
+
+
+    # Return a list of lat, long, and alt from latest APRS packet
+    def get_coor_alt(self):
+        with self.thread_lock:
+            return self.coor_alt
+
+
+    def print_info(self):
+        # prints the latest lat, long and alt of the balloon
+        local_coor_alt = self.get_coor_alt()
+        latest_tm = time.gmtime(self.latest_time)
+        print("Callsign: ", self.callsign)
+        print("Date: {}-{}-{}".format(latest_tm[0], latest_tm[1], latest_tm[2]))
+        print("Coordinates: ({}, {})".format(local_coor_alt[0], local_coor_alt[1]))
+        print("Altitude: {}".format(local_coor_alt[2]))
+
+        infoStr = "Callsign: " + self.callsign + " Date: {}-{}-{}".format(latest_tm[0], latest_tm[1], latest_tm[2])
+        infoStr += "\n" + "Coordinates: ({}, {}) Altitude: {}".format(local_coor_alt[0], local_coor_alt[1], local_coor_alt[2])
+        infoStr += "\n Balloon Selected!"
+        return infoStr
+
+
+    def getTimeDiff(self):
+        # finds the difference in time between the latest ping and the one before
+        print(self.last_time)
+
+        print(self.latest_time - self.last_time);
+        return self.latest_time - self.last_time
+
+
+    pass
+
+
+
+class Balloon_Coordinates_APRS_fi:
     def __init__(self, callsign:str, apikey:str):
 
         self.callsign = callsign
@@ -39,24 +182,71 @@ class Balloon_Coordinates_APRS:
         self.latest_time = 0
         self.last_time = 0
         self.coor_alt = [0, 0, 0]
-        self.last_coor_alt = [0, 0, 0]
 
-        self.APRSfi_sess = requests.Session()
-        self.APRSfi_sess.headers.update({
+        self.APRS_fi_sess = requests.Session()
+        self.APRS_fi_sess.headers.update({
             "User-Agent": "UMDBPP_NEBP_GS_Tracker/0.1 (+https://github.com/UMDBPP/NEBP-Ground-Station-Tracker)"
         })
-        self.APRSfi_sess.mount("https://", HTTPAdapter(max_retries=Retry(
+        self.APRS_fi_sess.mount("https://", HTTPAdapter(max_retries=Retry(
             total=3,
             backoff_factor=0.2,
             status_forcelist=[500, 502, 503, 504]
         )))
 
-        reqTest = Balloon_Coordinates_APRS.__req_packet__(self)
+        reqTest = Balloon_Coordinates_APRS_fi.__req_packet__(self)
         if(isinstance(reqTest, str)):
             print("\nPossible network connection problem or API failure response.\nExiting...")
             SystemExit(reqTest)
 
-        print("Balloon_Coordinates_APRS successfully initialized")
+        self.stop_thread = threading.Event()
+        self.thread_lock = threading.Lock()
+        self.coor_alt_thread = threading.Thread(target=self.update_coor_alt)
+        self.coor_alt_thread.start()
+
+        time.sleep(1)
+        with self.thread_lock:
+            if self.coor_alt == [0, 0, 0]:
+                time.sleep(4)
+            if self.coor_alt != [0, 0, 0]:
+                print("APRS.fi position update thread started")
+            else:
+                print("Attempted to start position update thread. No positions received yet")
+
+        print("Balloon_Coordinates_APRS_fi successfully initialized")
+        return
+    
+
+    def stop_updater(self):
+        if self.coor_alt_thread.is_alive():
+            self.stop_thread.set()
+            print("Waiting for updater to stop...")
+            self.coor_alt_thread.join()
+            print("Updater stopped")
+        else:
+            print("APRS.fi position update thread is not running")
+        return
+
+
+    def reset_updater(self):
+        self.stop_updater()
+
+        with self.thread_lock:
+            old_coor_alt = self.coor_alt
+
+        self.stop_thread.clear()
+        print('Attempting to restart position updater...')
+        self.coor_alt_thread = threading.Thread(target=self.update_coor_alt, daemon=True)
+        self.coor_alt_thread.start()
+
+        time.sleep(1)
+        
+        with self.thread_lock:
+            if self.coor_alt == old_coor_alt:
+                time.sleep(4)
+            if self.coor_alt != old_coor_alt:
+                print("APRS.fi position update thread started")
+            else:
+                print("Attempted to start position update thread. No positions received yet")
         return
 
 
@@ -89,7 +279,7 @@ class Balloon_Coordinates_APRS:
         # but they could (and should) be handled separately later.
         try:
             # Get latest APRS packet
-            req = self.APRSfi_sess.get("https://api.aprs.fi/api/get?name={}&what=loc&apikey={}&format=json".format(self.callsign, self.apikey), timeout=2)
+            req = self.APRS_fi_sess.get("https://api.aprs.fi/api/get?name={}&what=loc&apikey={}&format=json".format(self.callsign, self.apikey), timeout=2)
             req.raise_for_status() # Raise an HTTPError exception for bad HTTP status codes
         except requests.exceptions.ConnectionError as e:
             # Some kind of network problem
@@ -128,51 +318,58 @@ class Balloon_Coordinates_APRS:
         return reqData
         
 
+    # Position update thread
+    def update_coor_alt(self):
+        # Checks for updated position every 5 seconds
+        timer = time.time() - 5
+        while not self.stop_thread.is_set():
+            if (time.time() - timer) > 5:
+                timer = time.time()
+            # Request packet
+            reqData = Balloon_Coordinates_APRS_fi.__req_packet__(self)
+
+            # Save last time
+            self.last_time = self.latest_time
+            print(reqData)
+            # Record current location
+            with self.thread_lock:
+                self.coor_alt = [float(reqData["entries"][0]["lat"]),
+                                float(reqData["entries"][0]["lng"]),
+                                float(reqData["entries"][0]["altitude"])]
+                # Record the last time this position was reported
+                self.latest_time = int(reqData["entries"][0]["lasttime"])
+                print(self.coor_alt)
+            return
+
+
     # Return a list of lat, long, and alt from latest APRS packet
     def get_coor_alt(self):
-        # Request packet
-        reqData = Balloon_Coordinates_APRS.__req_packet__(self)
-
-        if(reqData == []):
-            # Some kind of problem with getting the packet
-            return []
-
-        # Save last location and time
-        self.last_coor_alt = self.coor_alt
-        self.last_time = self.latest_time
-
-        # Record current location
-        self.coor_alt = [float(reqData["entries"][0]["lat"]),
-                         float(reqData["entries"][0]["lng"]),
-                         float(reqData["entries"][0]["altitude"])]
-        # Record the last time this position was reported
-        self.latest_time = int(reqData["entries"][0]["lasttime"])
-        print(self.coor_alt)
-
-        return self.coor_alt  # [lat, long, altitude]
-
+        with self.thread_lock:
+            return self.coor_alt
+    
 
     def print_info(self):
         # prints the latest lat, long and alt of the balloon
-        self.get_coor_alt()
+        local_coor_alt = self.get_coor_alt()
         latest_tm = time.gmtime(self.latest_time)
         print("Callsign: ", self.callsign)
         print("Date: {}-{}-{}".format(latest_tm[0], latest_tm[1], latest_tm[2]))
-        print("Coordinates: ({}, {})".format(self.coor_alt[0], self.coor_alt[1]))
-        print("Altitude: {}".format(self.coor_alt[2]))
+        print("Coordinates: ({}, {})".format(local_coor_alt[0], local_coor_alt[1]))
+        print("Altitude: {}".format(local_coor_alt[2]))
 
         infoStr = "Callsign: " + self.callsign + " Date: {}-{}-{}".format(latest_tm[0], latest_tm[1], latest_tm[2])
-        infoStr += "\n" + "Coordinates: ({}, {}) Altitude: {}".format(self.coor_alt[0], self.coor_alt[1], self.coor_alt[2])
+        infoStr += "\n" + "Coordinates: ({}, {}) Altitude: {}".format(local_coor_alt[0], local_coor_alt[1], local_coor_alt[2])
         infoStr += "\n Balloon Selected!"
         return infoStr
 
 
     def getTimeDiff(self):
-        # finds the difference in time between the latest ping and the one before
-        print(self.last_time)
+        with self.thread_lock:
+            # finds the difference in time between the latest ping and the one before
+            print(self.last_time)
 
-        print(self.latest_time - self.last_time);
-        return self.latest_time - self.last_time
+            print(self.latest_time - self.last_time)
+            return self.latest_time - self.last_time
 
     pass
 
@@ -183,6 +380,10 @@ class Balloon_Coordinates_Borealis:
     def __init__(self, imei):
 
         self.imei = imei
+
+        self.latest_time = 0
+        self.last_time = 0
+        self.coor_alt = [0, 0, 0]
 
         try:
             # Grab and Define IMEI's Latest Flight
@@ -196,7 +397,23 @@ class Balloon_Coordinates_Borealis:
         # Define UID
         flightTime = timegm(time.strptime(self.latest_flight, "%Y-%m-%d")) - Balloon_Coordinates_Borealis.BOREALIS_EPOCH
         self.uid = (int(flightTime) << 24) | int(self.imei[8:])
+        print("UID: " + str(self.uid))
 
+        self.stop_thread = threading.Event()
+        self.thread_lock = threading.Lock()
+        self.coor_alt_thread = threading.Thread(target=self.update_coor_alt, daemon=True)
+        self.coor_alt_thread.start()
+
+        time.sleep(1)
+        with self.thread_lock:
+            if self.coor_alt == [0, 0, 0]:
+                time.sleep(5)
+            if self.coor_alt != [0, 0, 0]:
+                print("Position update thread started")
+            else:
+                print("Attempted to start position update thread. No positions received yet")
+
+        print("Balloon_Coordinates_Borealis successfully initialized")
         return
 
 
@@ -221,38 +438,123 @@ class Balloon_Coordinates_Borealis:
         return IMEIs
     
 
-    def get_coor_alt(self):
-        # returns a list containing the lat, long, and alt of the latest ping from the selected IMEI
+    def stop_updater(self):
+        if self.coor_alt_thread.is_alive():
+            self.stop_thread.set()
+            print("Waiting for updater to stop...")
+            self.coor_alt_thread.join()
+            print("Updater stopped")
+        else:
+            print("Borealis position update thread is not running")
+        return
+
+
+    def reset_updater(self):
+        self.stop_updater()
+
+        with self.thread_lock:
+            old_coor_alt = self.coor_alt
+
+        self.stop_thread.clear()
+        print('Attempting to restart position updater...')
+        self.coor_alt_thread = threading.Thread(target=self.update_coor_alt, daemon=True)
+        self.coor_alt_thread.start()
+
+        time.sleep(1)
+        
+        with self.thread_lock:
+            if self.coor_alt == old_coor_alt:
+                time.sleep(4)
+            if self.coor_alt != old_coor_alt:
+                print("Borealis position update thread started")
+            else:
+                print("Attempted to start position update thread. No positions received yet")
+        return
+
+
+    # Returns the json object of the latest Borealis Iridium packet.
+    def __req_packet__(self):
+        # Send request and deal with standard network/connection errors.
+        # At the moment, any exceptions here will just print the error and return an empty list,
+        # but they could (and should) be handled separately later.
         try:
+            # Get latest APRS packet
             req = requests.get("https://borealis.rci.montana.edu/flight?uid={}".format(self.uid))
             print("https://borealis.rci.montana.edu/flight?uid={}".format(self.uid))
-        except requests.exceptions.RequestException:
-            print("couldn't get updated position (no internet probably)")
-            return []
+            req.raise_for_status() # Raise an HTTPError exception for bad HTTP status codes
+        except requests.exceptions.ConnectionError as e:
+            # Some kind of network problem
+            print("Request Connection Error:")
+            print(e)
+            return e.strerror
+        except requests.exceptions.Timeout as e:
+            # Request timed out
+            print("Request Timeout:")
+            print(e)
+            return e.strerror
+        except MaxRetryError as e:
+            # Too many retries
+            print("Too many retries:")
+            print(e)
+            return str(e.reason) # Not sure what to do with the nested exception
+        except requests.exceptions.HTTPError as e:
+            # Some kind of HTTP error (e.g. 404)
+            print("Request HTTP Error:")
+            print(e)
+            return e.strerror
+        except requests.exceptions.RequestException as e:
+            # Some other request problem
+            print("Request Exception:")
+            print(e)
+            return e.strerror
+                
+        # Presumably, some kind of proper response from the server at this point
+        reqData = req.json()
+        
+        return reqData
 
-        data = req.json()
-        # print(data) # for debugging server problem, will print a lot
 
-        # print(data['data'][-1][3])
+    # Position update thread
+    def update_coor_alt(self):
+        # Checks for updated position every 5 seconds
+        timer = time.time() - 5
+        while not self.stop_thread.is_set():
+            if (time.time() - timer) > 5:
+                timer = time.time()
+            # Request packet
+            reqData = Balloon_Coordinates_Borealis.__req_packet__(self)
 
-        # Lat, Long, Alt
-        self.coor_alt = [data['data'][-1][3], data['data'][-1][4], data['data'][-1][5]]
-        print(self.coor_alt)
+            # Save last time
+            self.last_time = self.latest_time
+            print(reqData)
+            # Record current location
+            with self.thread_lock:
+                self.coor_alt = [reqData['data'][-1][3], reqData['data'][-1][4], reqData['data'][-1][5]]
+                # Record the last time this position was reported
+                # self.latest_time = int(reqData["entries"][0]["lasttime"])
+                print(self.coor_alt)
+            return
 
-        return self.coor_alt  # [lat, long, altitude]
+
+    # Return a list of lat, long, and alt from latest Borealis update
+    def get_coor_alt(self):
+        with self.thread_lock:
+            return self.coor_alt
+
 
     def print_info(self):
         # prints the latest lat, long and alt of the balloon
-        self.get_coor_alt()
+        local_coor_alt = self.get_coor_alt()
         print("IMEI: ", self.imei)
         print("Date:", self.latest_flight)
-        print("Coordinates: (", self.coor_alt[0], ", ", self.coor_alt[1], ")")
-        print("Altitude: ", self.coor_alt[2])
+        print("Coordinates: (", local_coor_alt[0], ", ", local_coor_alt[1], ")")
+        print("Altitude: ", local_coor_alt[2])
 
         infoStr = "IMEI: " + self.imei + " Date: " + self.latest_flight
-        infoStr += "\n" + "Coordinates: (" + str(self.coor_alt[0]) + ", " + str(self.coor_alt[1]) + ")" + " Altitude: " + str(self.coor_alt[2])
+        infoStr += "\n" + "Coordinates: (" + str(local_coor_alt[0]) + ", " + str(local_coor_alt[1]) + ")" + " Altitude: " + str(local_coor_alt[2])
         infoStr += "\n Balloon Selected!"
         return infoStr
+
 
     def getTimeDiff(self):
         # finds the difference in time between the latest ping and the one before

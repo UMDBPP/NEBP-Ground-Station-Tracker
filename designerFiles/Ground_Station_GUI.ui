@@ -58,23 +58,71 @@
        <layout class="QGridLayout" name="gridLayout_10">
         <item row="0" column="0">
          <layout class="QGridLayout" name="TrackingArduino_tab_grid">
-          <item row="8" column="0">
-           <spacer name="verticalSpacer">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
+          <item row="2" column="0">
+           <widget class="QRadioButton" name="APRS_fi_radioButton">
+            <property name="text">
+             <string>APRS.fi API</string>
             </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
+            <attribute name="buttonGroup">
+             <string notr="true">trackingSource_radioButtons</string>
+            </attribute>
+           </widget>
           </item>
-          <item row="2" column="1">
-           <widget class="Line" name="line_5">
+          <item row="14" column="0" colspan="3">
+           <layout class="QGridLayout" name="Arduino_grid">
+            <item row="7" column="2">
+             <widget class="QPushButton" name="Arduino_button_refreshCOMPorts">
+              <property name="text">
+               <string>Refresh</string>
+              </property>
+             </widget>
+            </item>
+            <item row="5" column="0">
+             <widget class="QLabel" name="Arduino_label_SelectArduino">
+              <property name="text">
+               <string>Select Arduino From The List Below</string>
+              </property>
+             </widget>
+            </item>
+            <item row="7" column="1">
+             <widget class="QPushButton" name="Arduino_button_ConnectArduino">
+              <property name="text">
+               <string>Connect to Arduino</string>
+              </property>
+             </widget>
+            </item>
+            <item row="7" column="0">
+             <widget class="QComboBox" name="Arduino_comboBox_COMPort"/>
+            </item>
+           </layout>
+          </item>
+          <item row="6" column="0">
+           <widget class="QRadioButton" name="APRS_Radio_radioButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>APRS Radio</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QRadioButton" name="APRS_IS_radioButton">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="text">
+             <string>APRS-IS</string>
+            </property>
+            <attribute name="buttonGroup">
+             <string notr="true">trackingSource_radioButtons</string>
+            </attribute>
+           </widget>
+          </item>
+          <item row="3" column="0" colspan="3">
+           <widget class="Line" name="line_12">
             <property name="orientation">
-             <enum>Qt::Vertical</enum>
+             <enum>Qt::Horizontal</enum>
             </property>
            </widget>
           </item>
@@ -95,6 +143,115 @@
             <attribute name="buttonGroup">
              <string notr="true">trackingSource_radioButtons</string>
             </attribute>
+           </widget>
+          </item>
+          <item row="8" column="0">
+           <spacer name="verticalSpacer">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item row="4" column="2">
+           <widget class="QWidget" name="APRS_IS_widget" native="true">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <layout class="QGridLayout" name="gridLayout_2">
+             <item row="0" column="0">
+              <widget class="QLabel" name="APRS_IS_label_EnterCallsign">
+               <property name="text">
+                <string>Select or Enter Callsign Below</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QComboBox" name="APRS_IS_comboBox_Callsign"/>
+             </item>
+             <item row="1" column="1">
+              <widget class="QPushButton" name="APRS_IS_button_ConfirmCallsign">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="text">
+                <string>Confirm Callsign</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="2">
+              <widget class="QPushButton" name="APRS_IS_button_ResetConnection">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="text">
+                <string>Reset APRS-IS Connection</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="7" column="0" colspan="3">
+           <widget class="Line" name="line_10">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="2">
+           <widget class="QWidget" name="APRS_Radio_widget" native="true">
+            <layout class="QGridLayout" name="gridLayout_3">
+             <item row="0" column="0">
+              <widget class="QLabel" name="label_3">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="text">
+                <string>Not Implemented</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item row="6" column="1">
+           <widget class="Line" name="line_13">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="12" column="0" colspan="3">
+           <widget class="QPushButton" name="Tracking_button_Refresh">
+            <property name="text">
+             <string>Get Latest Status From Selected Source</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0" colspan="3">
+           <widget class="Line" name="line_3">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="Line" name="line_14">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
            </widget>
           </item>
           <item row="0" column="2">
@@ -136,6 +293,20 @@
             </layout>
            </widget>
           </item>
+          <item row="2" column="1">
+           <widget class="Line" name="line_5">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="0" colspan="3">
+           <widget class="Line" name="line_6">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
           <item row="2" column="2">
            <widget class="QWidget" name="APRS_fi_widget" native="true">
             <property name="enabled">
@@ -152,26 +323,6 @@
                </property>
                <property name="text">
                 <string>Confirm Callsign</string>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="4">
-              <widget class="QPushButton" name="APRS_fi_button_ConfirmAPIKey">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="text">
-                <string>Confirm API Key</string>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="3">
-              <widget class="QLabel" name="APRS_fi_label_EnterAPIKey">
-               <property name="text">
-                <string>Enter APRS.fi API Key</string>
                </property>
               </widget>
              </item>
@@ -197,13 +348,6 @@
                </property>
               </widget>
              </item>
-             <item row="0" column="0">
-              <widget class="QLabel" name="APRS_fi_label_EnterCallsign">
-               <property name="text">
-                <string>Select or Enter Callsign Below</string>
-               </property>
-              </widget>
-             </item>
              <item row="1" column="0">
               <widget class="QComboBox" name="APRS_fi_comboBox_Callsign"/>
              </item>
@@ -214,7 +358,41 @@
                </property>
               </widget>
              </item>
+             <item row="0" column="0">
+              <widget class="QLabel" name="APRS_fi_label_EnterCallsign">
+               <property name="text">
+                <string>Select or Enter Callsign Below</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="3">
+              <widget class="QLabel" name="APRS_fi_label_EnterAPIKey">
+               <property name="text">
+                <string>Enter APRS.fi API Key</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="4">
+              <widget class="QPushButton" name="APRS_fi_button_ConfirmAPIKey">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="text">
+                <string>Confirm API Key</string>
+               </property>
+              </widget>
+             </item>
             </layout>
+           </widget>
+          </item>
+          <item row="13" column="0" colspan="3">
+           <widget class="Line" name="line">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
            </widget>
           </item>
           <item row="0" column="1">
@@ -224,143 +402,11 @@
             </property>
            </widget>
           </item>
-          <item row="12" column="0" colspan="3">
-           <layout class="QGridLayout" name="Arduino_grid">
-            <item row="7" column="2">
-             <widget class="QPushButton" name="Arduino_button_refreshCOMPorts">
-              <property name="text">
-               <string>Refresh</string>
-              </property>
-             </widget>
-            </item>
-            <item row="5" column="0">
-             <widget class="QLabel" name="Arduino_label_SelectArduino">
-              <property name="text">
-               <string>Select Arduino From the List Below</string>
-              </property>
-             </widget>
-            </item>
-            <item row="7" column="1">
-             <widget class="QPushButton" name="Arduino_button_ConnectArduino">
-              <property name="text">
-               <string>Connect to Arduino</string>
-              </property>
-             </widget>
-            </item>
-            <item row="7" column="0">
-             <widget class="QComboBox" name="Arduino_comboBox_COMPort"/>
-            </item>
-           </layout>
-          </item>
-          <item row="6" column="0">
-           <widget class="QRadioButton" name="APRS_Radio_radioButton">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="text">
-             <string>APRS Radio</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="0" colspan="3">
-           <widget class="Line" name="line_12">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="0">
-           <widget class="QRadioButton" name="APRS_fi_radioButton">
-            <property name="text">
-             <string>APRS.fi API</string>
-            </property>
-            <attribute name="buttonGroup">
-             <string notr="true">trackingSource_radioButtons</string>
-            </attribute>
-           </widget>
-          </item>
           <item row="11" column="0" colspan="3">
-           <widget class="Line" name="line">
+           <widget class="Line" name="line_16">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
-           </widget>
-          </item>
-          <item row="1" column="0" colspan="3">
-           <widget class="Line" name="line_3">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="0">
-           <widget class="QRadioButton" name="APRS_IS_radioButton">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="text">
-             <string>APRS-IS</string>
-            </property>
-           </widget>
-          </item>
-          <item row="7" column="0" colspan="3">
-           <widget class="Line" name="line_10">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="5" column="0" colspan="3">
-           <widget class="Line" name="line_6">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="6" column="1">
-           <widget class="Line" name="line_13">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="1">
-           <widget class="Line" name="line_14">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="2">
-           <widget class="QWidget" name="APRS_IS_widget" native="true">
-            <layout class="QGridLayout" name="gridLayout_2">
-             <item row="0" column="0">
-              <widget class="QLabel" name="label_2">
-               <property name="enabled">
-                <bool>false</bool>
-               </property>
-               <property name="text">
-                <string>Not Implemented</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item row="6" column="2">
-           <widget class="QWidget" name="APRS_Radio_widget" native="true">
-            <layout class="QGridLayout" name="gridLayout_3">
-             <item row="0" column="0">
-              <widget class="QLabel" name="label_3">
-               <property name="enabled">
-                <bool>false</bool>
-               </property>
-               <property name="text">
-                <string>Not Implemented</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
            </widget>
           </item>
          </layout>
@@ -427,7 +473,7 @@
           <item row="8" column="2">
            <widget class="QPushButton" name="backToZeroButton">
             <property name="text">
-             <string>Return to Zero Position</string>
+             <string>Return to &quot;Zero&quot; Position</string>
             </property>
            </widget>
           </item>
@@ -953,6 +999,22 @@
     <hint type="destinationlabel">
      <x>799</x>
      <y>174</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>APRS_IS_radioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>APRS_IS_widget</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>80</x>
+     <y>250</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>623</x>
+     <y>250</y>
     </hint>
    </hints>
   </connection>
