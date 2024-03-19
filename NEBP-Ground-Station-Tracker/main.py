@@ -89,20 +89,22 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.Borealis_comboBox_IMEI.setEditable(True)
         self.Borealis_comboBox_IMEI.setCompleter(completerIMEI)
 
-        self.APRS_fi_comboBox_Callsign.addItem("")
-        for i in range(len(self.callsignList)):
-            self.APRS_fi_comboBox_Callsign.addItem(self.callsignList[i])
-
         completerCallsign = QCompleter(self.callsignList)
         completerCallsign.setFilterMode(Qt.MatchContains)
         self.APRS_fi_comboBox_Callsign.setEditable(True)
         self.APRS_fi_comboBox_Callsign.setCompleter(completerCallsign)
         self.APRS_IS_comboBox_Callsign.setEditable(True)
         self.APRS_IS_comboBox_Callsign.setCompleter(completerCallsign)
+        self.APRS_Radio_comboBox_Callsign.setEditable(True)
+        self.APRS_Radio_comboBox_Callsign.setCompleter(completerCallsign)
 
+        self.APRS_fi_comboBox_Callsign.addItem("")
         self.APRS_IS_comboBox_Callsign.addItem("")
+        self.APRS_Radio_comboBox_Callsign.addItem("")
         for i in range(len(self.callsignList)):
+            self.APRS_fi_comboBox_Callsign.addItem(self.callsignList[i])
             self.APRS_IS_comboBox_Callsign.addItem(self.callsignList[i])
+            self.APRS_Radio_comboBox_Callsign.addItem(self.callsignList[i])
 
         self.ports = None
         self.portNames = []
@@ -114,9 +116,11 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.APRS_fi_button_ConfirmCallsign.clicked.connect(self.assignCallsign_APRS_fi)
         self.APRS_fi_button_ConfirmAPIKey.clicked.connect(self.assignAPRSfiKey)
         self.APRS_IS_button_ConfirmCallsign.clicked.connect(self.assignCallsign_APRS_IS)
-        self.APRS_IS_button_ResetConnection.clicked.connect(self.resetConnection_APRS_IS)
+        self.APRS_Radio_button_ConfirmCallsign.clicked.connect(self.assignCallsign_APRS_Radio)
+        self.APRS_Radio_button_ConnectRadio.clicked.connect(self.connectRadio_APRS_Radio)
 
         self.Tracking_button_Refresh.clicked.connect(self.refreshTrackingStatus)
+        self.Tracking_button_Reset.clicked.connect(self.resetTrackingStatus)
 
         self.GPSRequestButton.clicked.connect(self.getGSLocation)
         self.confirmGSLocationButton.clicked.connect(self.setGSLocation)
@@ -173,6 +177,22 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             testStr = self.Balloon.print_info()
             self.statusBox.setPlainText(testStr)
         return
+    
+    def resetTrackingStatus(self):
+        if type(self.Balloon) is not type(None):
+            status = self.Balloon.reset()
+            if status == 0:
+                self.statusBox.setPlainText("Position update thread successfully restarted and receiving")
+            elif status == 1:
+                self.statusBox.setPlainText("Position update thread successfully restarted, but no positions have been received yet")
+            elif status == -1:
+                self.statusBox.setPlainText("Position update thread is not running")
+            elif status == -2:
+                self.statusBox.setPlainText("Position update thread stopped, but failed to restart")
+            else:
+                self.statusBox.setPlainText("Unexpected status received from reset function: " + str(status))
+        return
+        
 
     def assignIMEI(self):
         # this function checks if an IMEI has been selected
@@ -182,9 +202,10 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             self.IMEIAssigned = True
             print(self.Borealis_comboBox_IMEI.currentText())        
             if type(self.Balloon) is not type(None):
-                self.Balloon.stop_updater()
+                self.Balloon.stop()
                 time.sleep(1)
-            self.Balloon = Balloon_Coordinates_Borealis(self.Borealis_comboBox_IMEI.currentText())
+            self.Balloon = Balloon_Coordinates_Borealis(service_type="Borealis",
+                                                        imei=self.Borealis_comboBox_IMEI.currentText())
             testStr = self.Balloon.print_info()
             self.statusBox.setPlainText(testStr)
             # self.Balloon.getTimeDiff()
@@ -202,6 +223,9 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.assignCallsign("APRS-IS")
         return
     
+    def assignCallsign_APRS_Radio(self):
+        self.assignCallsign("APRS_Radio")
+    
     def assignCallsign(self, service):
         # this function checks if a callsign has been selected
         if service == "APRS.fi":
@@ -212,9 +236,11 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 print("Assigned callsign: " + str(self.APRS_fi_comboBox_Callsign.currentText()))
                 if(self.APRSfiKeyAssigned):
                     if type(self.Balloon) is not type(None):
-                        self.Balloon.stop_updater()
+                        self.Balloon.stop()
                         time.sleep(1)
-                    self.Balloon = Balloon_Coordinates_APRS_fi(self.APRS_fi_comboBox_Callsign.currentText(), self.APRS_fi_lineEdit_APIKey.text())
+                    self.Balloon = Balloon_Coordinates_APRS_fi(service_type="APRS.fi",
+                                                               callsign=self.APRS_fi_comboBox_Callsign.currentText(),
+                                                               apikey=self.APRS_fi_lineEdit_APIKey.text())
                     testStr = self.Balloon.print_info()
                     self.statusBox.setPlainText(testStr)
             else:
@@ -226,11 +252,31 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.callsignAssigned = True
                 print("Assigned callsign: " + str(self.APRS_IS_comboBox_Callsign.currentText()))
                 if type(self.Balloon) is not type(None):
-                    self.Balloon.stop_updater()
+                    self.Balloon.stop()
                     time.sleep(1)
-                self.Balloon = Balloon_Coordinates_APRS_IS(self.APRS_IS_comboBox_Callsign.currentText())
+                self.Balloon = Balloon_Coordinates_APRS_IS(service_type="APRS-IS",
+                                                           callsign=self.APRS_IS_comboBox_Callsign.currentText())
                 testStr = self.Balloon.print_info()
                 self.statusBox.setPlainText(testStr)
+            else:
+                print("Select a balloon callsign from the list in APRS_Callsigns.csv")
+                self.statusBox.setPlainText("Please select a balloon callsign from those listed in APRS_Callsigns.csv")
+                self.callsignAssigned = False
+        elif service == "APRS_Radio":
+            if self.APRS_Radio_comboBox_Callsign.currentIndex() != 0:
+                print("Implementation pending")
+                self.statusBox.setPlainText("Implementation pending")
+                self.callsignAssigned = False
+
+                # self.callsignAssigned = True
+                # print("Assigned callsign: " + str(self.APRS_Radio_comboBox_Callsign.currentText()))
+                # if type(self.Balloon) is not type(None):
+                #     self.Balloon.stop()
+                #     time.sleep(1)
+                # self.Balloon = Balloon_Coordinates_APRS_IS(service_type="APRS-IS",
+                #                                            callsign=self.APRS_IS_comboBox_Callsign.currentText())
+                # testStr = self.Balloon.print_info()
+                # self.statusBox.setPlainText(testStr)
             else:
                 print("Select a balloon callsign from the list in APRS_Callsigns.csv")
                 self.statusBox.setPlainText("Please select a balloon callsign from those listed in APRS_Callsigns.csv")
@@ -250,9 +296,11 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Assigned APRS.fi API key: " + str(self.APRS_fi_lineEdit_APIKey.text()))
             if(self.callsignAssigned):
                 if type(self.Balloon) is not type(None):
-                    self.Balloon.stop_updater()
+                    self.Balloon.stop()
                     time.sleep(1)
-                self.Balloon = Balloon_Coordinates_APRS_fi(self.APRS_fi_comboBox_Callsign.currentText(), self.APRS_fi_lineEdit_APIKey.text())
+                self.Balloon = Balloon_Coordinates_APRS_fi(service_type="APRS.fi",
+                                                           callsign=self.APRS_fi_comboBox_Callsign.currentText(),
+                                                           apikey=self.APRS_fi_lineEdit_APIKey.text())
                 testStr = self.Balloon.print_info()
                 self.statusBox.setPlainText(testStr)
         else:
@@ -261,15 +309,9 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             self.APRSfiKeyAssigned = False
         return
     
-    def resetConnection_APRS_IS(self):
-        if type(self.Balloon) is Balloon_Coordinates_APRS_IS:
-            self.Balloon.reset_updater()
-            testStr = self.Balloon.print_info()
-            self.statusBox.setPlainText(testStr)
-        else:
-            print("APRS-IS Balloon not initialized")
-            self.statusBox.setPlainText("APRS-IS Balloon not initialized")
-
+    def connectRadio_APRS_Radio(self):
+        print("Implementation pending")
+        self.statusBox.setPlainText("Implementation pending")
 
     def refreshArduinoList(self):
         # this function searches the list of COM ports, and adds devices that it finds to the COM port combobox
