@@ -29,7 +29,7 @@ from PyQt5.QtCore import QThread, QObject, pyqtSignal, Qt, pyqtSlot
 from PyQt5.QtWidgets import QCompleter, QApplication, QDesktopWidget
 from Ground_Station_GUI import Ui_MainWindow
 import sys
-from Balloon_Coordinates import Balloon_Coordinates_Borealis, Balloon_Coordinates_APRS_fi, Balloon_Coordinates_APRS_IS
+from Balloon_Coordinates import Balloon_Coordinates_Borealis, Balloon_Coordinates_APRS_fi, Balloon_Coordinates_APRS_IS, Balloon_Coordinates_APRS_SDR
 from satelliteTrackingMath import trackMath
 from Ground_Station_Arduino import Ground_Station_Arduino
 import serial.tools.list_ports
@@ -224,7 +224,12 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         return
     
     def assignCallsign_APRS_Radio(self):
-        self.assignCallsign("APRS_Radio")
+        if self.APRS_Radio_radioButton_SDR.isChecked():
+            self.assignCallsign("APRS_Radio_SDR")
+        elif self.APRS_Radio_radioButton_Serial.isChecked():
+            self.assignCallsign("APRS_Radio_Serial")
+        else:
+            print("assignCallsign_APRS_Radio: This message should not be seen")
     
     def assignCallsign(self, service):
         # this function checks if a callsign has been selected
@@ -262,7 +267,22 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 print("Select a balloon callsign from the list in APRS_Callsigns.csv")
                 self.statusBox.setPlainText("Please select a balloon callsign from those listed in APRS_Callsigns.csv")
                 self.callsignAssigned = False
-        elif service == "APRS_Radio":
+        elif service == "APRS_Radio_SDR":
+            if self.APRS_Radio_comboBox_Callsign.currentIndex() != 0:
+                self.callsignAssigned = True
+                print("Assigned callsign: " + str(self.APRS_Radio_comboBox_Callsign.currentText()))
+                if type(self.Balloon) is not type(None):
+                    self.Balloon.stop()
+                    time.sleep(1)
+                self.Balloon = Balloon_Coordinates_APRS_SDR(service_type="APRS-SDR",
+                                                           callsign=self.APRS_Radio_comboBox_Callsign.currentText())
+                testStr = self.Balloon.print_info()
+                self.statusBox.setPlainText(testStr)
+            else:
+                print("Select a balloon callsign from the list in APRS_Callsigns.csv")
+                self.statusBox.setPlainText("Please select a balloon callsign from those listed in APRS_Callsigns.csv")
+                self.callsignAssigned = False
+        elif service == "APRS_Radio_Serial":
             if self.APRS_Radio_comboBox_Callsign.currentIndex() != 0:
                 print("Implementation pending")
                 self.statusBox.setPlainText("Implementation pending")
@@ -282,7 +302,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.statusBox.setPlainText("Please select a balloon callsign from those listed in APRS_Callsigns.csv")
                 self.callsignAssigned = False
         else:
-            print("This message should not be seen")
+            print("assignCallsign: This message should not be seen")
 
         return
 

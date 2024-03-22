@@ -58,6 +58,104 @@
        <layout class="QGridLayout" name="gridLayout_10">
         <item row="0" column="0">
          <layout class="QGridLayout" name="TrackingArduino_tab_grid">
+          <item row="8" column="0">
+           <spacer name="verticalSpacer">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item row="7" column="0" colspan="3">
+           <widget class="Line" name="line_10">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="15" column="0" colspan="3">
+           <widget class="Line" name="line">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0" colspan="3">
+           <widget class="Line" name="line_3">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0" colspan="3">
+           <widget class="Line" name="line_12">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="Line" name="line_14">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="11" column="0" colspan="3">
+           <widget class="Line" name="line_16">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="Line" name="line_5">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QRadioButton" name="Borealis_radioButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>Borealis Iridium</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+            <attribute name="buttonGroup">
+             <string notr="true">trackingSource_radioButtons</string>
+            </attribute>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="Line" name="line_4">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QRadioButton" name="APRS_fi_radioButton">
+            <property name="text">
+             <string>APRS.fi API</string>
+            </property>
+            <attribute name="buttonGroup">
+             <string notr="true">trackingSource_radioButtons</string>
+            </attribute>
+           </widget>
+          </item>
           <item row="14" column="0" colspan="3">
            <layout class="QGridLayout" name="Source_Options_grid">
             <item row="0" column="1">
@@ -82,28 +180,44 @@
             </item>
            </layout>
           </item>
-          <item row="7" column="0" colspan="3">
-           <widget class="Line" name="line_10">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
+          <item row="4" column="0">
+           <widget class="QRadioButton" name="APRS_IS_radioButton">
+            <property name="enabled">
+             <bool>true</bool>
             </property>
-           </widget>
-          </item>
-          <item row="1" column="0" colspan="3">
-           <widget class="Line" name="line_3">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="0">
-           <widget class="QRadioButton" name="APRS_fi_radioButton">
             <property name="text">
-             <string>APRS.fi API</string>
+             <string>APRS-IS</string>
             </property>
             <attribute name="buttonGroup">
              <string notr="true">trackingSource_radioButtons</string>
             </attribute>
+           </widget>
+          </item>
+          <item row="6" column="1">
+           <widget class="Line" name="line_13">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="0">
+           <widget class="QRadioButton" name="APRS_Radio_radioButton">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="text">
+             <string>APRS Radio</string>
+            </property>
+            <attribute name="buttonGroup">
+             <string notr="true">trackingSource_radioButtons</string>
+            </attribute>
+           </widget>
+          </item>
+          <item row="5" column="0" colspan="3">
+           <widget class="Line" name="line_6">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
            </widget>
           </item>
           <item row="0" column="2">
@@ -143,122 +257,6 @@
               </widget>
              </item>
             </layout>
-           </widget>
-          </item>
-          <item row="6" column="2">
-           <widget class="QWidget" name="APRS_Radio_widget" native="true">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <layout class="QGridLayout" name="gridLayout_3">
-             <item row="0" column="4" rowspan="2">
-              <layout class="QGridLayout" name="APRS_Radio_grid_Options">
-               <item row="1" column="2">
-                <widget class="QComboBox" name="APRS_Radio_comboBox_COMPort"/>
-               </item>
-               <item row="0" column="2">
-                <widget class="QLabel" name="APRS_Radio_label_SelectRadio">
-                 <property name="text">
-                  <string>Select Radio From The List Below</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="1">
-                <widget class="QPushButton" name="APRS_Radio_button_ConfirmCallsign">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                   <horstretch>0</horstretch>
-                   <verstretch>0</verstretch>
-                  </sizepolicy>
-                 </property>
-                 <property name="text">
-                  <string>Confirm Callsign</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="0">
-                <widget class="QComboBox" name="APRS_Radio_comboBox_Callsign"/>
-               </item>
-               <item row="1" column="3">
-                <widget class="QPushButton" name="APRS_Radio_button_ConnectRadio">
-                 <property name="text">
-                  <string>Connect to Radio</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="0">
-                <widget class="QLabel" name="APRS_Radio_label_SelectCallsign">
-                 <property name="text">
-                  <string>Select Callsign Below</string>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item row="1" column="0">
-              <widget class="QRadioButton" name="APRS_Radio_radioButton_Serial">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="text">
-                <string>Serial TNC</string>
-               </property>
-               <attribute name="buttonGroup">
-                <string notr="true">buttonGroup</string>
-               </attribute>
-              </widget>
-             </item>
-             <item row="0" column="0">
-              <widget class="QRadioButton" name="APRS_Radio_radioButton_SDR">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="text">
-                <string>SDR</string>
-               </property>
-               <property name="checked">
-                <bool>true</bool>
-               </property>
-               <attribute name="buttonGroup">
-                <string notr="true">buttonGroup</string>
-               </attribute>
-              </widget>
-             </item>
-             <item row="0" column="1" rowspan="2">
-              <widget class="Line" name="line_49">
-               <property name="orientation">
-                <enum>Qt::Vertical</enum>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item row="3" column="0" colspan="3">
-           <widget class="Line" name="line_12">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="1">
-           <widget class="Line" name="line_4">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="1">
-           <widget class="Line" name="line_14">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
            </widget>
           </item>
           <item row="2" column="2">
@@ -342,20 +340,6 @@
             </layout>
            </widget>
           </item>
-          <item row="2" column="1">
-           <widget class="Line" name="line_5">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="15" column="0" colspan="3">
-           <widget class="Line" name="line">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
           <item row="16" column="0" colspan="3">
            <layout class="QGridLayout" name="Arduino_grid">
             <item row="7" column="0">
@@ -383,52 +367,6 @@
              </widget>
             </item>
            </layout>
-          </item>
-          <item row="11" column="0" colspan="3">
-           <widget class="Line" name="line_16">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="6" column="0">
-           <widget class="QRadioButton" name="APRS_Radio_radioButton">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
-            <property name="text">
-             <string>APRS Radio</string>
-            </property>
-            <attribute name="buttonGroup">
-             <string notr="true">trackingSource_radioButtons</string>
-            </attribute>
-           </widget>
-          </item>
-          <item row="5" column="0" colspan="3">
-           <widget class="Line" name="line_6">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="0">
-           <widget class="QRadioButton" name="Borealis_radioButton">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>Borealis Iridium</string>
-            </property>
-            <property name="checked">
-             <bool>true</bool>
-            </property>
-            <attribute name="buttonGroup">
-             <string notr="true">trackingSource_radioButtons</string>
-            </attribute>
-           </widget>
           </item>
           <item row="4" column="2">
            <widget class="QWidget" name="APRS_IS_widget" native="true">
@@ -462,37 +400,126 @@
             </layout>
            </widget>
           </item>
-          <item row="6" column="1">
-           <widget class="Line" name="line_13">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-           </widget>
-          </item>
-          <item row="8" column="0">
-           <spacer name="verticalSpacer">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item row="4" column="0">
-           <widget class="QRadioButton" name="APRS_IS_radioButton">
+          <item row="6" column="2">
+           <widget class="QWidget" name="APRS_Radio_widget" native="true">
             <property name="enabled">
-             <bool>true</bool>
+             <bool>false</bool>
             </property>
-            <property name="text">
-             <string>APRS-IS</string>
-            </property>
-            <attribute name="buttonGroup">
-             <string notr="true">trackingSource_radioButtons</string>
-            </attribute>
+            <layout class="QGridLayout" name="gridLayout_3">
+             <item row="1" column="0">
+              <widget class="QRadioButton" name="APRS_Radio_radioButton_Serial">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="text">
+                <string>Serial TNC</string>
+               </property>
+               <property name="checkable">
+                <bool>true</bool>
+               </property>
+               <attribute name="buttonGroup">
+                <string notr="true">buttonGroup</string>
+               </attribute>
+              </widget>
+             </item>
+             <item row="0" column="0">
+              <widget class="QRadioButton" name="APRS_Radio_radioButton_SDR">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="text">
+                <string>SDR</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+               <attribute name="buttonGroup">
+                <string notr="true">buttonGroup</string>
+               </attribute>
+              </widget>
+             </item>
+             <item row="0" column="1" rowspan="2">
+              <widget class="Line" name="line_49">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="4" rowspan="2">
+              <layout class="QGridLayout" name="APRS_Radio_grid_Callsign">
+               <item row="1" column="1">
+                <widget class="QPushButton" name="APRS_Radio_button_ConfirmCallsign">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="text">
+                  <string>Confirm Callsign</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="0">
+                <widget class="QLabel" name="APRS_Radio_label_SelectCallsign">
+                 <property name="text">
+                  <string>Select Callsign Below</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QComboBox" name="APRS_Radio_comboBox_Callsign"/>
+               </item>
+              </layout>
+             </item>
+             <item row="0" column="5" rowspan="2">
+              <widget class="QWidget" name="APRS_Radio_widget_Radio" native="true">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <layout class="QGridLayout" name="gridLayout_4">
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <item row="1" column="1">
+                 <widget class="QLabel" name="APRS_Radio_label_SelectRadio">
+                  <property name="text">
+                   <string>Select Radio From The List Below</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="1">
+                 <widget class="QComboBox" name="APRS_Radio_comboBox_COMPort"/>
+                </item>
+                <item row="2" column="2">
+                 <widget class="QPushButton" name="APRS_Radio_button_ConnectRadio">
+                  <property name="text">
+                   <string>Connect to Radio</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+            </layout>
            </widget>
           </item>
          </layout>
@@ -1120,9 +1147,25 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>APRS_Radio_radioButton_Serial</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>APRS_Radio_widget_Radio</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>207</x>
+     <y>343</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>880</x>
+     <y>329</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <buttongroups>
-  <buttongroup name="trackingSource_radioButtons"/>
   <buttongroup name="buttonGroup"/>
+  <buttongroup name="trackingSource_radioButtons"/>
  </buttongroups>
 </ui>

@@ -31,6 +31,8 @@ import csv
 from pathlib import Path
 import aprs
 import threading
+import subprocess
+import atexit
 
 
 class Balloon_Coordinates:
@@ -45,6 +47,7 @@ class Balloon_Coordinates:
         self.stop_thread = threading.Event()
         self.thread_lock = threading.Lock()
 
+        atexit.register(self.stop)
         return
     
 
@@ -175,16 +178,40 @@ class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
 
         self.start()
         return
+    
+
+    def start(self):
+        self.sdrProc = subprocess.Popen("/usr/bin/rtl_fm -f 144.39M -o 4 - | /srv/NEBP-Ground_Station/NEBP-Ground-Station-Tracker/external/direwolf/build/src/direwolf -c /srv/NEBP-Ground_Station/NEBP-Ground-Station-Tracker/external/direwolf.conf -n 1 -r 24000 -b 16 -",
+                                        shell=True,
+                                        stdin=subprocess.PIPE,
+                                        stdout=subprocess.DEVNULL)
+        time.sleep(0.1)
+        super().start()
+
+
+    def stop(self):
+        super().stop()
+        # self.sdrProc.terminate()
+        self.sdrProc.kill()
+        self.sdrProc.wait()
+        time.sleep(0.1)
+
 
     def _update_coor_alt(self):
         def _handle_frame(frame):
-            if frame.source is self.callsign:
-                print("\nIncoming frame:")
-                print(frame)
+            print("\nIncoming frame:")
+            print(frame)
+            if frame.source.callsign == self.callsign.split("-")[0].encode('UTF-8') and frame.source.ssid == int(self.callsign.split("-")[1]):
+                print("Matching callsign found")
                 with self.thread_lock:
-                    self.coor_alt = [frame.info.lat, frame.info.long, frame.info.altitude_ft*0.3048]
-                    # self.coor_alt = [float(frame.info.lat), float(frame.info.long), self.coor_alt[2]]
+                    if frame.info.altitude_ft == None:
+                        self.coor_alt = [float(frame.info.lat), float(frame.info.long), self.coor_alt[2]]
+                    else:
+                        self.coor_alt = [float(frame.info.lat), float(frame.info.long), float(frame.info.altitude_ft)*0.3048]
                     print(self.coor_alt)
+                    if frame.info.timestamp != None:
+                        self.last_time = self.latest_time
+                        self.latest_time = float(frame.info.timestamp)
 
         with aprs.TCPKISS(host="localhost", port=8001) as aprs_tcp:
             print("APRS-SDR connection initialized")
