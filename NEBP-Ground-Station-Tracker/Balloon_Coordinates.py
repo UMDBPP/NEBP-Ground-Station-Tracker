@@ -30,7 +30,7 @@ from urllib3.exceptions import MaxRetryError
 import csv
 from pathlib import Path
 import aprs
-import threading
+import multiprocessing
 import subprocess
 import atexit
 
@@ -44,8 +44,8 @@ class Balloon_Coordinates:
 
         self.service_type = service_type
         
-        self.stop_thread = threading.Event()
-        self.thread_lock = threading.Lock()
+        self.stop_process = multiprocessing.Event()
+        self.process_lock = multiprocessing.Lock()
 
         atexit.register(self.stop)
         return
@@ -53,8 +53,8 @@ class Balloon_Coordinates:
 
     # Test whether the position updating is working
     def test(self) -> int:
-        if not self.coor_alt_thread.is_alive():
-            print(str(self.service_type) + " position update thread is not running")
+        if not self.coor_alt_process.is_alive():
+            print(str(self.service_type) + " position update process is not running")
             return -1
 
         # Save the current coor_alt
@@ -67,37 +67,40 @@ class Balloon_Coordinates:
         
         # Check if coor_alt has changed
         if self.get_coor_alt() != old_coor_alt:
-            print(str(self.service_type) + " position update thread is receiving updates")
+            print(str(self.service_type) + " position update process is receiving updates")
             return 0
-        elif self.coor_alt_thread.is_alive(): # No change in coor_alt, so is the thread still running?
-            print("Position update thread is running, but no positions received yet")
+        elif self.coor_alt_process.is_alive(): # No change in coor_alt, so is the process still running?
+            print("Position update process is running, but no positions received yet")
             return 1
         else:
-            print(str(self.service_type) + " position update thread is not running")
+            print(str(self.service_type) + " position update process is not running")
         return -2
 
 
-    # Start and test the position update thread
+    # Start and test the position update process
     def start(self) -> int:
-        self.coor_alt_thread = threading.Thread(target=self._update_coor_alt, daemon=True)
-        self.coor_alt_thread.start()
+        self.coor_alt_process = multiprocessing.Process(target=self._update_coor_alt, daemon=True)
+        self.coor_alt_process.start()
 
         return self.test()
 
 
-    # Stop the position update thread
+    # Stop the position update process
     def stop(self):
-        if self.coor_alt_thread.is_alive():
-            self.stop_thread.set() # Send signal to stop
+        if self.coor_alt_process.is_alive():
+            self.stop_process.set() # Send signal to stop
             print("Waiting for updater to stop...")
-            self.coor_alt_thread.join() # Pause execution here and wait for the thread to stop
+            self.coor_alt_process.join(15) # Pause execution here and wait for the process to stop or 15 seconds
+            if self.coor_alt_process.is_alive():
+                print("Updater has not stopped in 15 seconds. Terminating updater...")
+                self.coor_alt_process.terminate()
             print("Updater stopped")
         else:
-            print(str(self.service_type) + " position update thread is not running")
+            print(str(self.service_type) + " position update process is not running")
         return
 
 
-    # Stop then restart thread
+    # Stop then restart process
     def reset(self) -> int:
         self.stop()
         return self.start()
@@ -105,7 +108,7 @@ class Balloon_Coordinates:
 
     # Return a list of lat, long, and alt from latest position update
     def get_coor_alt(self):
-        with self.thread_lock:
+        with self.process_lock:
             return self.coor_alt
 
 
@@ -125,7 +128,7 @@ class Balloon_Coordinates:
 
     # finds the difference in time between the latest ping and the one before
     def getTimeDiff(self):
-        with self.thread_lock:
+        with self.process_lock:
             print(self.last_time)
 
             print(self.latest_time - self.last_time)
@@ -203,7 +206,7 @@ class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
             print(frame)
             if frame.source.callsign == self.callsign.split("-")[0].encode('UTF-8') and frame.source.ssid == int(self.callsign.split("-")[1]):
                 print("Matching callsign found")
-                with self.thread_lock:
+                with self.process_lock:
                     if frame.info.altitude_ft == None:
                         self.coor_alt = [float(frame.info.lat), float(frame.info.long), self.coor_alt[2]]
                     else:
@@ -215,10 +218,49 @@ class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
 
         with aprs.TCPKISS(host="localhost", port=8001) as aprs_tcp:
             print("APRS-SDR connection initialized")
-            while not self.stop_thread.is_set():
+            while not self.stop_process.is_set():
                 aprs_tcp.read(callback=_handle_frame, min_frames=1)
                 
-        print("Thread stopping...")
+        print("Process stopping...")
+        return
+
+
+    pass
+
+
+
+class Balloon_Coordinates_APRS_SerialTNC(Balloon_Coordinates_APRS):
+    def __init__(self, service_type:str, callsign:str, port:str, baud_rate:str):
+        super().__init__(service_type, callsign)
+        self.port = port
+        self.baud_rate = baud_rate
+
+        self.start()
+        return
+
+
+    def _update_coor_alt(self):
+        def _handle_frame(frame):
+            print("\nIncoming frame:")
+            print(frame)
+            if frame.source.callsign == self.callsign.split("-")[0].encode('UTF-8') and frame.source.ssid == int(self.callsign.split("-")[1]):
+                print("Matching callsign found")
+                with self.process_lock:
+                    if frame.info.altitude_ft == None:
+                        self.coor_alt = [float(frame.info.lat), float(frame.info.long), self.coor_alt[2]]
+                    else:
+                        self.coor_alt = [float(frame.info.lat), float(frame.info.long), float(frame.info.altitude_ft)*0.3048]
+                    print(self.coor_alt)
+                    if frame.info.timestamp != None:
+                        self.last_time = self.latest_time
+                        self.latest_time = float(frame.info.timestamp)
+
+        with aprs.SerialKISS(port=self.port, speed=self.baud_rate) as aprs_tnc:
+            print("APRS serial TNC connection initialized")
+            while not self.stop_process.is_set():
+                aprs_tnc.read(callback=_handle_frame, min_frames=1)
+                
+        print("Process stopping...")
         return
 
 
@@ -242,17 +284,17 @@ class Balloon_Coordinates_APRS_IS(Balloon_Coordinates_APRS):
         def __handle_frame(frame):
             print("\nIncoming frame:")
             print(frame)
-            with self.thread_lock:
+            with self.process_lock:
                 self.coor_alt = [frame.info.lat, frame.info.long, frame.info.altitude_ft*0.3048]
                 # self.coor_alt = [float(frame.info.lat), float(frame.info.long), self.coor_alt[2]]
                 print(self.coor_alt)
 
         with aprs.TCP(host="noam.aprs2.net", port=14580, command=aprsFilter) as aprs_tcp:
             print("APRS-IS connection initialized")
-            while not self.stop_thread.is_set():
+            while not self.stop_process.is_set():
                 aprs_tcp.read(callback=__handle_frame, min_frames=1)
                 
-        print("Thread stopping...")
+        print("Process stopping...")
         return
 
 
@@ -330,11 +372,11 @@ class Balloon_Coordinates_APRS_fi(Balloon_Coordinates_APRS):
         return reqData
         
 
-    # Position update thread
+    # Position update process
     def _update_coor_alt(self):
         # Checks for updated position every 5 seconds
         timer = time.time() - 5
-        while not self.stop_thread.is_set():
+        while not self.stop_process.is_set():
             if (time.time() - timer) > 5:
                 timer = time.time()
             # Request packet
@@ -344,7 +386,7 @@ class Balloon_Coordinates_APRS_fi(Balloon_Coordinates_APRS):
             self.last_time = self.latest_time
             print(reqData)
             # Record current location
-            with self.thread_lock:
+            with self.process_lock:
                 self.coor_alt = [float(reqData["entries"][0]["lat"]),
                                 float(reqData["entries"][0]["lng"]),
                                 float(reqData["entries"][0]["altitude"])]
@@ -444,11 +486,11 @@ class Balloon_Coordinates_Borealis(Balloon_Coordinates):
         return req.json()
 
 
-    # Position update thread
+    # Position update process
     def _update_coor_alt(self):
         # Checks for updated position every 5 seconds
         timer = time.time() - 5
-        while not self.stop_thread.is_set():
+        while not self.stop_process.is_set():
             if (time.time() - timer) > 5:
                 timer = time.time()
             # Request packet
@@ -458,7 +500,7 @@ class Balloon_Coordinates_Borealis(Balloon_Coordinates):
             self.last_time = self.latest_time
             print(reqData)
             # Record current location
-            with self.thread_lock:
+            with self.process_lock:
                 self.coor_alt = [reqData['data'][-1][3], reqData['data'][-1][4], reqData['data'][-1][5]]
                 # Record the last time this position was reported
                 self.latest_time = int(reqData['data'][-1][2])

@@ -265,8 +265,8 @@
              <bool>false</bool>
             </property>
             <layout class="QGridLayout" name="gridLayout_9">
-             <item row="1" column="1">
-              <widget class="QPushButton" name="APRS_fi_button_ConfirmCallsign">
+             <item row="1" column="4">
+              <widget class="QPushButton" name="APRS_fi_button_ConfirmAPIKey">
                <property name="sizePolicy">
                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
                  <horstretch>0</horstretch>
@@ -274,7 +274,21 @@
                 </sizepolicy>
                </property>
                <property name="text">
-                <string>Confirm Callsign</string>
+                <string>Confirm API Key</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="3">
+              <widget class="QLabel" name="APRS_fi_label_EnterAPIKey">
+               <property name="text">
+                <string>Enter APRS.fi API Key</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="0">
+              <widget class="QLabel" name="APRS_fi_label_EnterCallsign">
+               <property name="text">
+                <string>Select Callsign Below</string>
                </property>
               </widget>
              </item>
@@ -300,9 +314,6 @@
                </property>
               </widget>
              </item>
-             <item row="1" column="0">
-              <widget class="QComboBox" name="APRS_fi_comboBox_Callsign"/>
-             </item>
              <item row="0" column="2" rowspan="2">
               <widget class="Line" name="line_11">
                <property name="orientation">
@@ -310,22 +321,8 @@
                </property>
               </widget>
              </item>
-             <item row="0" column="0">
-              <widget class="QLabel" name="APRS_fi_label_EnterCallsign">
-               <property name="text">
-                <string>Select Callsign Below</string>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="3">
-              <widget class="QLabel" name="APRS_fi_label_EnterAPIKey">
-               <property name="text">
-                <string>Enter APRS.fi API Key</string>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="4">
-              <widget class="QPushButton" name="APRS_fi_button_ConfirmAPIKey">
+             <item row="1" column="1">
+              <widget class="QPushButton" name="APRS_fi_button_ConfirmCallsign">
                <property name="sizePolicy">
                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
                  <horstretch>0</horstretch>
@@ -333,9 +330,12 @@
                 </sizepolicy>
                </property>
                <property name="text">
-                <string>Confirm API Key</string>
+                <string>Confirm Callsign</string>
                </property>
               </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QComboBox" name="APRS_fi_comboBox_Callsign"/>
              </item>
             </layout>
            </widget>
@@ -408,9 +408,6 @@
             <layout class="QGridLayout" name="gridLayout_3">
              <item row="1" column="0">
               <widget class="QRadioButton" name="APRS_Radio_radioButton_Serial">
-               <property name="enabled">
-                <bool>false</bool>
-               </property>
                <property name="sizePolicy">
                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                  <horstretch>0</horstretch>
@@ -454,6 +451,86 @@
                </property>
               </widget>
              </item>
+             <item row="0" column="7" rowspan="2">
+              <widget class="QWidget" name="APRS_Radio_widget_Radio" native="true">
+               <property name="enabled">
+                <bool>false</bool>
+               </property>
+               <layout class="QGridLayout" name="gridLayout_4">
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <item row="2" column="1">
+                 <widget class="QLabel" name="APRS_Radio_label_EnterBaudrate">
+                  <property name="text">
+                   <string>Enter Baud Rate:</string>
+                  </property>
+                  <property name="alignment">
+                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="2">
+                 <widget class="QLineEdit" name="APRS_Radio_lineEdit_Baudrate">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="2">
+                 <widget class="QComboBox" name="APRS_Radio_comboBox_COMPort"/>
+                </item>
+                <item row="1" column="1">
+                 <widget class="QLabel" name="APRS_Radio_label_SelectRadio">
+                  <property name="text">
+                   <string>Select Radio:</string>
+                  </property>
+                  <property name="alignment">
+                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="5" rowspan="2">
+                 <widget class="QPushButton" name="APRS_Radio_button_refreshCOMPorts">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string>Refresh</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="4" rowspan="2">
+                 <widget class="QPushButton" name="APRS_Radio_button_ConnectRadio">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string>Connect to Radio</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
              <item row="0" column="4" rowspan="2">
               <layout class="QGridLayout" name="APRS_Radio_grid_Callsign">
                <item row="1" column="1">
@@ -482,41 +559,10 @@
               </layout>
              </item>
              <item row="0" column="5" rowspan="2">
-              <widget class="QWidget" name="APRS_Radio_widget_Radio" native="true">
-               <property name="enabled">
-                <bool>false</bool>
+              <widget class="Line" name="line_27">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
                </property>
-               <layout class="QGridLayout" name="gridLayout_4">
-                <property name="leftMargin">
-                 <number>0</number>
-                </property>
-                <property name="topMargin">
-                 <number>0</number>
-                </property>
-                <property name="rightMargin">
-                 <number>0</number>
-                </property>
-                <property name="bottomMargin">
-                 <number>0</number>
-                </property>
-                <item row="1" column="1">
-                 <widget class="QLabel" name="APRS_Radio_label_SelectRadio">
-                  <property name="text">
-                   <string>Select Radio From The List Below</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="2" column="1">
-                 <widget class="QComboBox" name="APRS_Radio_comboBox_COMPort"/>
-                </item>
-                <item row="2" column="2">
-                 <widget class="QPushButton" name="APRS_Radio_button_ConnectRadio">
-                  <property name="text">
-                   <string>Connect to Radio</string>
-                  </property>
-                 </widget>
-                </item>
-               </layout>
               </widget>
              </item>
             </layout>

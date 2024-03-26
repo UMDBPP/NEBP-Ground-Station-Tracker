@@ -29,7 +29,7 @@ from PyQt5.QtCore import QThread, QObject, pyqtSignal, Qt, pyqtSlot
 from PyQt5.QtWidgets import QCompleter, QApplication, QDesktopWidget
 from Ground_Station_GUI import Ui_MainWindow
 import sys
-from Balloon_Coordinates import Balloon_Coordinates_Borealis, Balloon_Coordinates_APRS_fi, Balloon_Coordinates_APRS_IS, Balloon_Coordinates_APRS_SDR
+from Balloon_Coordinates import Balloon_Coordinates_Borealis, Balloon_Coordinates_APRS_fi, Balloon_Coordinates_APRS_IS, Balloon_Coordinates_APRS_SDR, Balloon_Coordinates_APRS_SerialTNC
 from satelliteTrackingMath import trackMath
 from Ground_Station_Arduino import Ground_Station_Arduino
 import serial.tools.list_ports
@@ -66,6 +66,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.IMEIAssigned = False
         self.callsignAssigned = False
         self.APRSfiKeyAssigned = False
+        self.radioConnected = False
         self.GSLocationSet = False
         self.calibrated = False
 
@@ -109,7 +110,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.ports = None
         self.portNames = []
         self.comPortCounter = 0
-        self.refreshArduinoList()
+        self.refreshCOMPortLists()
 
         self.Borealis_button_RefreshIMEI.clicked.connect(self.refreshIMEI)
         self.Borealis_button_ConfirmIMEI.clicked.connect(self.assignIMEI)
@@ -117,7 +118,9 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.APRS_fi_button_ConfirmAPIKey.clicked.connect(self.assignAPRSfiKey)
         self.APRS_IS_button_ConfirmCallsign.clicked.connect(self.assignCallsign_APRS_IS)
         self.APRS_Radio_button_ConfirmCallsign.clicked.connect(self.assignCallsign_APRS_Radio)
+        self.APRS_Radio_button_refreshCOMPorts.clicked.connect(self.refreshCOMPortLists)
         self.APRS_Radio_button_ConnectRadio.clicked.connect(self.connectRadio_APRS_Radio)
+        self.APRS_Radio_comboBox_COMPort.setCurrentIndex(self.comPortCounter - 1)
 
         self.Tracking_button_Refresh.clicked.connect(self.refreshTrackingStatus)
         self.Tracking_button_Reset.clicked.connect(self.resetTrackingStatus)
@@ -127,7 +130,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.calibrateButton.clicked.connect(self.calibrate)
 
-        self.Arduino_button_refreshCOMPorts.clicked.connect(self.refreshArduinoList)
+        self.Arduino_button_refreshCOMPorts.clicked.connect(self.refreshCOMPortLists)
         self.Arduino_button_ConnectArduino.clicked.connect(self.connectToArduino)
 
         self.degreesPerClickBox.setCurrentIndex(1)
@@ -284,19 +287,18 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.callsignAssigned = False
         elif service == "APRS_Radio_Serial":
             if self.APRS_Radio_comboBox_Callsign.currentIndex() != 0:
-                print("Implementation pending")
-                self.statusBox.setPlainText("Implementation pending")
-                self.callsignAssigned = False
-
-                # self.callsignAssigned = True
-                # print("Assigned callsign: " + str(self.APRS_Radio_comboBox_Callsign.currentText()))
-                # if type(self.Balloon) is not type(None):
-                #     self.Balloon.stop()
-                #     time.sleep(1)
-                # self.Balloon = Balloon_Coordinates_APRS_IS(service_type="APRS-IS",
-                #                                            callsign=self.APRS_IS_comboBox_Callsign.currentText())
-                # testStr = self.Balloon.print_info()
-                # self.statusBox.setPlainText(testStr)
+                self.callsignAssigned = True
+                print("Assigned callsign: " + str(self.APRS_Radio_comboBox_Callsign.currentText()))
+                if self.radioConnected and self.baudrate > 0:
+                    if type(self.Balloon) is not type(None):
+                        self.Balloon.stop()
+                        time.sleep(1)
+                    self.Balloon = Balloon_Coordinates_APRS_SerialTNC(service_type="APRS Serial TNC",
+                                                                      callsign=self.APRS_Radio_comboBox_Callsign.currentText(),
+                                                                      port=self.radio_port,
+                                                                      baudrate=self.baud_rate)
+                    testStr = self.Balloon.print_info()
+                    self.statusBox.setPlainText(testStr)
             else:
                 print("Select a balloon callsign from the list in APRS_Callsigns.csv")
                 self.statusBox.setPlainText("Please select a balloon callsign from those listed in APRS_Callsigns.csv")
@@ -330,18 +332,46 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         return
     
     def connectRadio_APRS_Radio(self):
-        print("Implementation pending")
-        self.statusBox.setPlainText("Implementation pending")
+        if self.APRS_Radio_comboBox_COMPort.currentText() != 0:
+            if self.APRS_Radio_lineEdit_Baudrate.text() != 0 and str(self.APRS_Radio_lineEdit_Baudrate.text()).isdigit():
+                self.radio_port = "/dev/" + str(self.APRS_Radio_comboBox_COMPort.currentText())
+                self.baud_rate = int(self.APRS_Radio_lineEdit_Baudrate.text())
+                self.radioConnected = True
+                print("Radio connected")
+                self.statusBox.setPlainText("Radio connected")
+                if self.callsignAssigned:
+                    print("Starting balloon position updater")
+                    self.statusBox.setPlainText("Starting balloon position updater")
+                    if type(self.Balloon) is not type(None):
+                        self.Balloon.stop()
+                        time.sleep(1)
+                    self.Balloon = Balloon_Coordinates_APRS_SerialTNC(service_type="APRS Serial TNC",
+                                                                      callsign=self.APRS_Radio_comboBox_Callsign.currentText(),
+                                                                      port=self.radio_port,
+                                                                      baud_rate=self.baud_rate)
+                    testStr = self.Balloon.print_info()
+                    self.statusBox.setPlainText(testStr)
+            else:
+                print("Enter a valid baud rate for the connected radio")
+                self.statusBox.setPlainText("Enter a valid baud rate for the connected radio")
+                self.radioConnected = False
+        else:
+            print("Select the device for the connected radio")
+            self.statusBox.setPlainText("Select the device for the connected radio")
+            self.radioConnected = False
 
-    def refreshArduinoList(self):
-        # this function searches the list of COM ports, and adds devices that it finds to the COM port combobox
+
+    def refreshCOMPortLists(self):
+        # this function searches the list of COM ports, and adds devices that it finds to the COM port comboboxes
         self.Arduino_comboBox_COMPort.clear()
+        self.APRS_Radio_comboBox_COMPort.clear()
         self.ports = serial.tools.list_ports.comports()
         self.portNames = []
         self.comPortCounter = 0
         for port, desc, hwid in sorted(self.ports):
             # self.Arduino_comboBox_COMPort.addItem("[{}] {}: {}".format(i, port, desc))
             self.Arduino_comboBox_COMPort.addItem(desc)
+            self.APRS_Radio_comboBox_COMPort.addItem(desc)
             self.portNames.append("{}".format(port))
             self.comPortCounter += 1
 
