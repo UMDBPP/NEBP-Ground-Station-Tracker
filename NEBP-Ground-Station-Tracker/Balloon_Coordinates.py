@@ -143,6 +143,10 @@ class Balloon_Coordinates_APRS(Balloon_Coordinates):
     def __init__(self, service_type:str, callsign:str) -> None:
         super().__init__(service_type)
         self.callsign = callsign
+        if len(self.callsign.split("-")) == 1:
+            self.callsign_has_ssid = False
+        else:
+            self.callsign_has_ssid = True
         return
 
 
@@ -204,7 +208,7 @@ class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
         def _handle_frame(frame):
             print("\nIncoming frame:")
             print(frame)
-            if frame.source.callsign == self.callsign.split("-")[0].encode('UTF-8') and frame.source.ssid == int(self.callsign.split("-")[1]):
+            if frame.source.callsign == self.callsign.split("-")[0].encode('UTF-8') and (not self.callsign_has_ssid or frame.source.ssid == int(self.callsign.split("-")[1])):
                 print("Matching callsign found")
                 with self.process_lock:
                     if frame.info.altitude_ft == None:
@@ -243,7 +247,7 @@ class Balloon_Coordinates_APRS_SerialTNC(Balloon_Coordinates_APRS):
         def _handle_frame(frame):
             print("\nIncoming frame:")
             print(frame)
-            if frame.source.callsign == self.callsign.split("-")[0].encode('UTF-8') and frame.source.ssid == int(self.callsign.split("-")[1]):
+            if frame.source.callsign == self.callsign.split("-")[0].encode('UTF-8') and (not self.callsign_has_ssid or frame.source.ssid == int(self.callsign.split("-")[1])):
                 print("Matching callsign found")
                 with self.process_lock:
                     if frame.info.altitude_ft == None:
@@ -282,12 +286,17 @@ class Balloon_Coordinates_APRS_IS(Balloon_Coordinates_APRS):
         # aprsFilter = "filter t/p"
 
         def __handle_frame(frame):
-            print("\nIncoming frame:")
+            print("\nIncoming APRS-IS frame:")
             print(frame)
             with self.process_lock:
-                self.coor_alt = [frame.info.lat, frame.info.long, frame.info.altitude_ft*0.3048]
-                # self.coor_alt = [float(frame.info.lat), float(frame.info.long), self.coor_alt[2]]
+                if frame.info.altitude_ft == None:
+                    self.coor_alt = [float(frame.info.lat), float(frame.info.long), self.coor_alt[2]]
+                else:
+                    self.coor_alt = [float(frame.info.lat), float(frame.info.long), float(frame.info.altitude_ft)*0.3048]
                 print(self.coor_alt)
+                if frame.info.timestamp != None:
+                    self.last_time = self.latest_time
+                    self.latest_time = float(frame.info.timestamp)
 
         with aprs.TCP(host="noam.aprs2.net", port=14580, command=aprsFilter) as aprs_tcp:
             print("APRS-IS connection initialized")

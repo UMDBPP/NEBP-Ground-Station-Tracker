@@ -60,7 +60,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         else:
             for i in range(len(self.IMEIList)):
                 self.Borealis_comboBox_IMEI.addItem(self.IMEIList[i])
-        self.callsignList = Balloon_Coordinates_APRS_IS.list_callsigns()
+        self.refreshCallsigns()
 
         self.arduinoConnected = False
         self.IMEIAssigned = False
@@ -98,14 +98,6 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.APRS_IS_comboBox_Callsign.setCompleter(completerCallsign)
         self.APRS_Radio_comboBox_Callsign.setEditable(True)
         self.APRS_Radio_comboBox_Callsign.setCompleter(completerCallsign)
-
-        self.APRS_fi_comboBox_Callsign.addItem("")
-        self.APRS_IS_comboBox_Callsign.addItem("")
-        self.APRS_Radio_comboBox_Callsign.addItem("")
-        for i in range(len(self.callsignList)):
-            self.APRS_fi_comboBox_Callsign.addItem(self.callsignList[i])
-            self.APRS_IS_comboBox_Callsign.addItem(self.callsignList[i])
-            self.APRS_Radio_comboBox_Callsign.addItem(self.callsignList[i])
 
         self.ports = None
         self.portNames = []
@@ -160,6 +152,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.predictingTrack = False
 
+
     def refreshIMEI(self):
         # Refresh the Borealis_comboBox_IMEI IMEI list from the Borealis website
         print("Refreshing IMEI list")
@@ -175,12 +168,14 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.Borealis_comboBox_IMEI.addItem(self.IMEIList[i])
         return
 
+
     def refreshTrackingStatus(self):
         if type(self.Balloon) is not type(None):
             testStr = self.Balloon.print_info()
             self.statusBox.setPlainText(testStr)
         return
     
+
     def resetTrackingStatus(self):
         if type(self.Balloon) is not type(None):
             status = self.Balloon.reset()
@@ -218,14 +213,42 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             self.IMEIAssigned = False
         return
 
+
+    def refreshCallsigns(self):
+        self.callsignList = Balloon_Coordinates_APRS_IS.list_callsigns()
+
+        self.APRS_fi_comboBox_Callsign.clear()
+        self.APRS_IS_comboBox_Callsign.clear()
+        self.APRS_Radio_comboBox_Callsign.clear()
+
+        self.APRS_fi_comboBox_Callsign.addItem("")
+        self.APRS_IS_comboBox_Callsign.addItem("")
+        self.APRS_Radio_comboBox_Callsign.addItem("")
+        
+        for idx, callsign in enumerate(self.callsignList):
+            if len(callsign.split("-")) == 1:
+                self.APRS_IS_comboBox_Callsign.addItem(callsign)
+                self.APRS_Radio_comboBox_Callsign.addItem(callsign)
+            else:
+                if self.APRS_IS_comboBox_Callsign.findText(callsign.split("-")[0]) == -1:
+                    self.APRS_IS_comboBox_Callsign.addItem(callsign.split("-")[0])
+                    self.APRS_Radio_comboBox_Callsign.addItem(callsign.split("-")[0])
+                
+                self.APRS_IS_comboBox_Callsign.addItem(callsign)
+                self.APRS_Radio_comboBox_Callsign.addItem(callsign)
+                self.APRS_fi_comboBox_Callsign.addItem(callsign)
+
+
     def assignCallsign_APRS_fi(self):
         self.assignCallsign("APRS.fi")
         return
+
 
     def assignCallsign_APRS_IS(self):
         self.assignCallsign("APRS-IS")
         return
     
+
     def assignCallsign_APRS_Radio(self):
         if self.APRS_Radio_radioButton_SDR.isChecked():
             self.assignCallsign("APRS_Radio_SDR")
@@ -234,7 +257,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         else:
             print("assignCallsign_APRS_Radio: This message should not be seen")
     
-    def assignCallsign(self, service):
+
+    def assignCallsign(self, service:str):
         # this function checks if a callsign has been selected
         if service == "APRS.fi":
             # if a callsign has been selected and an API key has been entered, it creates an instance of the balloon coordinates APRS class
@@ -308,6 +332,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         return
 
+
     def assignAPRSfiKey(self):
         # this function checks if an APRS.fi API key has been entered
         # if an API key has been entered and a callsign has been selected, it creates an instance of the balloon coordinates APRS class
@@ -375,6 +400,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             self.portNames.append("{}".format(port))
             self.comPortCounter += 1
 
+
     def connectToArduino(self):
         # checks if arduino is selected, and if the connection is not already made, instantiates an instance of
         # the Ground_Station_Arduino class
@@ -391,6 +417,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         return
 
+
     def tiltUp(self):
         # if an arduino is connected, uses GSArduino to adjust the tilt up
         if self.arduinoConnected:
@@ -401,6 +428,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             self.statusBox.setPlainText("Not connected to ground station motors")
 
         return
+
 
     def tiltDown(self):
         # if an arduino is connected, uses GSArduino to adjust the tilt down
@@ -413,6 +441,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         return
 
+
     def panCounterClockwise(self):
         # if an arduino is connected, uses GSArduino to adjust the pan counter-clockwise
         if self.arduinoConnected:
@@ -424,6 +453,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         return
 
+
     def panClockwise(self):
         # if an arduino is connected, uses GSArduino to adjust the pan clockwise
         if self.arduinoConnected:
@@ -434,6 +464,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             self.statusBox.setPlainText("Not connected to ground station motors")
 
         return
+
 
     def getGSLocation(self):
         # if the arduino is connected, this uses a GPS shield to request the coordinates of the ground station
@@ -463,6 +494,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         return
 
+
     def setGSLocation(self):
         # this ensures that the arduino is connected, and valid text is present in the gs location text boxes
         # if the values present can be converted to floats, the starting location of the gs is set
@@ -491,6 +523,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             print("numbers only for GPS location (decimal degrees)")
             self.statusBox.setPlainText("Invalid GPS location entered. Please only enter numbers")
 
+
     def getStartingPos(self):
         # this makes a call to sunposition to calculate the azimuth and elevation of the sun at the current location
         # of the ground station
@@ -510,6 +543,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                                               "and point at the sun using solar sight")
 
         return
+
 
     def calibrate(self):
         # sends the GSArduino class the starting azimuth and elevation
@@ -535,6 +569,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         return
 
+
     def returnToSun(self):
         if self.arduinoConnected and self.GSLocationSet and self.calibrated:
             now = datetime.utcnow()
@@ -555,6 +590,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         return
     
+
     def returnToZero(self):
         if self.arduinoConnected and self.GSLocationSet and self.calibrated:
             self.GSArduino.move_position(0, 0)
@@ -567,12 +603,14 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         return
 
+
     def setPredictTrack(self):
         # sets the predict track bool variable
         # then calls the checkIfReady function to ensure all conditions to track have been met
         self.predictingTrack = True
         self.checkIfReady()
         return
+
 
     def checkIfReady(self):
         # this function ensures that all conditions to track have been met
@@ -628,6 +666,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             print("not ready to track yet")
             return False
 
+
     def callTrack(self):
         # sets up the qt thread to start tracking, and starts the thread
         self.tracking = True
@@ -648,6 +687,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.calibrateButton.setEnabled(False)
 
         self.trackThread.start()
+
 
     def callPredictTrack(self):
         # sets up the qt thread to start tracking with predictions and starts the thread
@@ -671,6 +711,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.trackThread.start()
 
+
     def stopTracking(self):
         # this stops the tracking thread, thus stopping the tracking
         if self.tracking:
@@ -682,6 +723,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             self.statusBox.setPlainText("tracking stopped")
         return
 
+
     def EStop(self):
         if self.arduinoConnected:
             self.GSArduino.sendEStop()
@@ -692,12 +734,14 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         return
 
+
     def displayCalculations(self, distance, azimuth, elevation):
         # this displays the outputs from the tracking threads on the GUI
         self.distanceDisplay.setText(str(distance))
         self.azimuthDisplay.setText(str(azimuth))
         self.elevationDisplay.setText(str(elevation))
         return
+
 
 
 class Worker(QObject):
@@ -742,6 +786,7 @@ class Worker(QObject):
         print(str(self.i) + " location updates processed")
         self.finished.emit()  # same pycharm bug as above
         return
+
 
     def predictTrack(self):
         # check for new location from server
@@ -852,6 +897,7 @@ class Worker(QObject):
         calculations.close()
         self.finished.emit()
         return
+
 
 
 if __name__ == "__main__":
