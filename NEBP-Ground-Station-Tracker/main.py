@@ -180,13 +180,13 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         if type(self.Balloon) is not type(None):
             status = self.Balloon.reset()
             if status == 0:
-                self.statusBox.setPlainText("Position update thread successfully restarted and receiving")
+                self.statusBox.setPlainText("Position update process successfully restarted and receiving")
             elif status == 1:
-                self.statusBox.setPlainText("Position update thread successfully restarted, but no positions have been received yet")
+                self.statusBox.setPlainText("Position update process successfully restarted, but no positions have been received yet")
             elif status == -1:
-                self.statusBox.setPlainText("Position update thread is not running")
+                self.statusBox.setPlainText("Position update process is not running")
             elif status == -2:
-                self.statusBox.setPlainText("Position update thread stopped, but failed to restart")
+                self.statusBox.setPlainText("Position update process stopped, but failed to restart")
             else:
                 self.statusBox.setPlainText("Unexpected status received from reset function: " + str(status))
         return
@@ -202,6 +202,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             if type(self.Balloon) is not type(None):
                 self.Balloon.stop()
                 time.sleep(1)
+            del self.Balloon
             self.Balloon = Balloon_Coordinates_Borealis(service_type="Borealis",
                                                         imei=self.Borealis_comboBox_IMEI.currentText())
             testStr = self.Balloon.print_info()
@@ -270,6 +271,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                     if type(self.Balloon) is not type(None):
                         self.Balloon.stop()
                         time.sleep(1)
+                    del self.Balloon
                     self.Balloon = Balloon_Coordinates_APRS_fi(service_type="APRS.fi",
                                                                callsign=self.APRS_fi_comboBox_Callsign.currentText(),
                                                                apikey=self.APRS_fi_lineEdit_APIKey.text())
@@ -286,6 +288,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 if type(self.Balloon) is not type(None):
                     self.Balloon.stop()
                     time.sleep(1)
+                del self.Balloon
                 self.Balloon = Balloon_Coordinates_APRS_IS(service_type="APRS-IS",
                                                            callsign=self.APRS_IS_comboBox_Callsign.currentText())
                 testStr = self.Balloon.print_info()
@@ -301,6 +304,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 if type(self.Balloon) is not type(None):
                     self.Balloon.stop()
                     time.sleep(1)
+                del self.Balloon
                 self.Balloon = Balloon_Coordinates_APRS_SDR(service_type="APRS-SDR",
                                                            callsign=self.APRS_Radio_comboBox_Callsign.currentText())
                 testStr = self.Balloon.print_info()
@@ -317,6 +321,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                     if type(self.Balloon) is not type(None):
                         self.Balloon.stop()
                         time.sleep(1)
+                    del self.Balloon
                     self.Balloon = Balloon_Coordinates_APRS_SerialTNC(service_type="APRS Serial TNC",
                                                                       callsign=self.APRS_Radio_comboBox_Callsign.currentText(),
                                                                       port=self.radio_port,
@@ -345,6 +350,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 if type(self.Balloon) is not type(None):
                     self.Balloon.stop()
                     time.sleep(1)
+                del self.Balloon
                 self.Balloon = Balloon_Coordinates_APRS_fi(service_type="APRS.fi",
                                                            callsign=self.APRS_fi_comboBox_Callsign.currentText(),
                                                            apikey=self.APRS_fi_lineEdit_APIKey.text())
@@ -370,6 +376,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                     if type(self.Balloon) is not type(None):
                         self.Balloon.stop()
                         time.sleep(1)
+                    del self.Balloon
                     self.Balloon = Balloon_Coordinates_APRS_SerialTNC(service_type="APRS Serial TNC",
                                                                       callsign=self.APRS_Radio_comboBox_Callsign.currentText(),
                                                                       port=self.radio_port,
@@ -635,6 +642,10 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 print("APRS.fi API key assigned")
             elif type(self.Balloon) is Balloon_Coordinates_APRS_IS:
                 pass
+            elif type(self.Balloon) is Balloon_Coordinates_APRS_SDR:
+                pass
+            elif type(self.Balloon) is Balloon_Coordinates_APRS_SerialTNC:
+                pass
             else:
                 print("APRS.fi API key not assigned")
                 self.statusBox.setPlainText("Please set an APRS.fi API key to use APRS")
@@ -650,9 +661,11 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         print("\n")
 
-        if((self.arduinoConnected and self.IMEIAssigned and self.calibrated and self.GSLocationSet)
+        if(   (self.arduinoConnected and self.IMEIAssigned and self.calibrated and self.GSLocationSet)
            or (self.arduinoConnected and self.callsignAssigned and self.APRSfiKeyAssigned and self.calibrated and self.GSLocationSet)
-           or (self.arduinoConnected and self.callsignAssigned and type(self.Balloon) is Balloon_Coordinates_APRS_IS and self.calibrated and self.GSLocationSet)):
+           or (self.arduinoConnected and self.callsignAssigned and type(self.Balloon) is Balloon_Coordinates_APRS_IS and self.calibrated and self.GSLocationSet)
+           or (self.arduinoConnected and self.callsignAssigned and type(self.Balloon) is Balloon_Coordinates_APRS_SDR and self.calibrated and self.GSLocationSet)
+           or (self.arduinoConnected and self.callsignAssigned and type(self.Balloon) is Balloon_Coordinates_APRS_SerialTNC and self.calibrated and self.GSLocationSet)):
             
             if self.predictingTrack:
                 self.statusBox.setPlainText("Starting tracking with predictions!")

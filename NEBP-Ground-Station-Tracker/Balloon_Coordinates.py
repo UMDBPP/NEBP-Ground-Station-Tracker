@@ -38,9 +38,9 @@ import atexit
 class Balloon_Coordinates:
     # Initialize common variables
     def __init__(self, service_type:str) -> None:
-        self.latest_time = 0
-        self.last_time = 0
-        self.coor_alt = [0, 0, 0]
+        self.latest_time = multiprocessing.Value(typecode_or_type='f', lock=False)
+        self.last_time = multiprocessing.Value(typecode_or_type='f', lock=False)
+        self.coor_alt = multiprocessing.Array(typecode_or_type='f', size_or_initializer=3, lock=False)
 
         self.service_type = service_type
         
@@ -54,7 +54,7 @@ class Balloon_Coordinates:
     # Test whether the position updating is working
     def test(self) -> int:
         if not self.coor_alt_process.is_alive():
-            print(str(self.service_type) + " position update process is not running")
+            print(str(self.service_type) + " position update process is not running at test start")
             return -1
 
         # Save the current coor_alt
@@ -69,12 +69,12 @@ class Balloon_Coordinates:
         if self.get_coor_alt() != old_coor_alt:
             print(str(self.service_type) + " position update process is receiving updates")
             return 0
-        elif self.coor_alt_process.is_alive(): # No change in coor_alt, so is the process still running?
+        if self.coor_alt_process.is_alive(): # No change in coor_alt, so is the process still running?
             print("Position update process is running, but no positions received yet")
             return 1
         else:
-            print(str(self.service_type) + " position update process is not running")
-        return -2
+            print(str(self.service_type) + " position update process is not running at test end")
+            return -2
 
 
     # Start and test the position update process
@@ -96,7 +96,7 @@ class Balloon_Coordinates:
                 self.coor_alt_process.terminate()
             print("Updater stopped")
         else:
-            print(str(self.service_type) + " position update process is not running")
+            print(str(self.service_type) + " position update process is not running at process stop")
         return
 
 
@@ -109,13 +109,13 @@ class Balloon_Coordinates:
     # Return a list of lat, long, and alt from latest position update
     def get_coor_alt(self):
         with self.process_lock:
-            return self.coor_alt
+            return [self.coor_alt[0], self.coor_alt[1], self.coor_alt[2]]
 
 
     # prints the latest lat, long and alt of the balloon
     def print_info(self):
         local_coor_alt = self.get_coor_alt()
-        latest_tm = time.gmtime(self.latest_time)
+        latest_tm = time.gmtime(self.latest_time.value)
         print("Date: {}-{}-{}".format(latest_tm[0], latest_tm[1], latest_tm[2]))
         print("Coordinates: ({}, {})".format(local_coor_alt[0], local_coor_alt[1]))
         print("Altitude: {}".format(local_coor_alt[2]))
@@ -129,10 +129,10 @@ class Balloon_Coordinates:
     # finds the difference in time between the latest ping and the one before
     def getTimeDiff(self):
         with self.process_lock:
-            print(self.last_time)
+            print(self.last_time.value)
 
-            print(self.latest_time - self.last_time)
-            return self.latest_time - self.last_time
+            print(self.latest_time.value - self.last_time.value)
+            return self.latest_time.value - self.last_time.value
 
 
     pass
@@ -198,9 +198,12 @@ class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
 
     def stop(self):
         super().stop()
-        # self.sdrProc.terminate()
-        self.sdrProc.kill()
-        self.sdrProc.wait()
+        self.sdrProc.terminate()
+        self.sdrProc.wait(10)
+        if self.sdrProc.poll() is None:
+            print("Subprocess did not terminate in 10 seconds, sending kill signal")
+            self.sdrProc.kill()
+            self.sdrProc.wait()
         time.sleep(0.1)
 
 
@@ -211,14 +214,14 @@ class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
             if frame.source.callsign == self.callsign.split("-")[0].encode('UTF-8') and (not self.callsign_has_ssid or frame.source.ssid == int(self.callsign.split("-")[1])):
                 print("Matching callsign found")
                 with self.process_lock:
-                    if frame.info.altitude_ft == None:
-                        self.coor_alt = [float(frame.info.lat), float(frame.info.long), self.coor_alt[2]]
-                    else:
-                        self.coor_alt = [float(frame.info.lat), float(frame.info.long), float(frame.info.altitude_ft)*0.3048]
-                    print(self.coor_alt)
+                    self.coor_alt[0] = float(frame.info.lat)
+                    self.coor_alt[1] = float(frame.info.long)
+                    if frame.info.altitude_ft != None:
+                        self.coor_alt[2] = float(frame.info.altitude_ft)*0.3048
                     if frame.info.timestamp != None:
-                        self.last_time = self.latest_time
-                        self.latest_time = float(frame.info.timestamp)
+                        self.last_time.value = self.latest_time.value
+                        self.latest_time.value = float(frame.info.timestamp)
+                print(self.get_coor_alt())
 
         with aprs.TCPKISS(host="localhost", port=8001) as aprs_tcp:
             print("APRS-SDR connection initialized")
@@ -250,14 +253,14 @@ class Balloon_Coordinates_APRS_SerialTNC(Balloon_Coordinates_APRS):
             if frame.source.callsign == self.callsign.split("-")[0].encode('UTF-8') and (not self.callsign_has_ssid or frame.source.ssid == int(self.callsign.split("-")[1])):
                 print("Matching callsign found")
                 with self.process_lock:
-                    if frame.info.altitude_ft == None:
-                        self.coor_alt = [float(frame.info.lat), float(frame.info.long), self.coor_alt[2]]
-                    else:
-                        self.coor_alt = [float(frame.info.lat), float(frame.info.long), float(frame.info.altitude_ft)*0.3048]
-                    print(self.coor_alt)
+                    self.coor_alt[0] = float(frame.info.lat)
+                    self.coor_alt[1] = float(frame.info.long)
+                    if frame.info.altitude_ft != None:
+                        self.coor_alt[2] = float(frame.info.altitude_ft)*0.3048
                     if frame.info.timestamp != None:
-                        self.last_time = self.latest_time
-                        self.latest_time = float(frame.info.timestamp)
+                        self.last_time.value = self.latest_time.value
+                        self.latest_time.value = float(frame.info.timestamp)
+                print(self.get_coor_alt())
 
         with aprs.SerialKISS(port=self.port, speed=self.baud_rate) as aprs_tnc:
             print("APRS serial TNC connection initialized")
@@ -289,14 +292,14 @@ class Balloon_Coordinates_APRS_IS(Balloon_Coordinates_APRS):
             print("\nIncoming APRS-IS frame:")
             print(frame)
             with self.process_lock:
-                if frame.info.altitude_ft == None:
-                    self.coor_alt = [float(frame.info.lat), float(frame.info.long), self.coor_alt[2]]
-                else:
-                    self.coor_alt = [float(frame.info.lat), float(frame.info.long), float(frame.info.altitude_ft)*0.3048]
-                print(self.coor_alt)
+                self.coor_alt[0] = float(frame.info.lat)
+                self.coor_alt[1] = float(frame.info.long)
+                if frame.info.altitude_ft != None:
+                    self.coor_alt[2] = float(frame.info.altitude_ft)*0.3048
                 if frame.info.timestamp != None:
-                    self.last_time = self.latest_time
-                    self.latest_time = float(frame.info.timestamp)
+                    self.last_time.value = self.latest_time.value
+                    self.latest_time.value = float(frame.info.timestamp)
+            print(self.get_coor_alt())
 
         with aprs.TCP(host="noam.aprs2.net", port=14580, command=aprsFilter) as aprs_tcp:
             print("APRS-IS connection initialized")
@@ -392,7 +395,7 @@ class Balloon_Coordinates_APRS_fi(Balloon_Coordinates_APRS):
             reqData = Balloon_Coordinates_APRS_fi._req_packet(self)
 
             # Save last time
-            self.last_time = self.latest_time
+            self.last_time.value = self.latest_time.value
             print(reqData)
             # Record current location
             with self.process_lock:
@@ -400,7 +403,7 @@ class Balloon_Coordinates_APRS_fi(Balloon_Coordinates_APRS):
                                 float(reqData["entries"][0]["lng"]),
                                 float(reqData["entries"][0]["altitude"])]
                 # Record the last time this position was reported
-                self.latest_time = int(reqData["entries"][0]["lasttime"])
+                self.latest_time.value = int(reqData["entries"][0]["lasttime"])
                 print(self.coor_alt)
             return
 
@@ -506,15 +509,22 @@ class Balloon_Coordinates_Borealis(Balloon_Coordinates):
             reqData = Balloon_Coordinates_Borealis._req_packet(self)
 
             # Save last time
-            self.last_time = self.latest_time
-            print(reqData)
+            self.last_time.value = self.latest_time.value
+            # print(reqData)
             # Record current location
             with self.process_lock:
-                self.coor_alt = [reqData['data'][-1][3], reqData['data'][-1][4], reqData['data'][-1][5]]
+                self.coor_alt[0] = float(reqData['data'][-1][3])
+                self.coor_alt[1] = float(reqData['data'][-1][4])
+                self.coor_alt[2] = float(reqData['data'][-1][5])
                 # Record the last time this position was reported
-                self.latest_time = int(reqData['data'][-1][2])
-                print(self.coor_alt)
+                self.latest_time.value = int(reqData['data'][-1][2])
+            print(self.get_coor_alt())
             return
+
+
+    def print_info(self):
+        print("IMEI: ", self.imei)
+        return ("IMEI: " + self.imei + " " + super().print_info())    
 
 
     pass
