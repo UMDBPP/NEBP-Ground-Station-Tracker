@@ -94,9 +94,21 @@ class Balloon_Coordinates:
             if self.coor_alt_process.is_alive():
                 print("Updater has not stopped in 15 seconds. Terminating updater...")
                 self.coor_alt_process.terminate()
+                self.coor_alt_process.join(15) # Pause execution here and wait for the process to stop or 15 seconds
+                if self.coor_alt_process.is_alive():
+                    print("Updater has not terminated in 15 seconds. Killing updater...")
+                    self.coor_alt_process.kill()
+                    self.coor_alt_process.join(15) # Pause execution here and wait for the process to stop or 15 seconds
+                    if self.coor_alt_process.is_alive():
+                        print("Error stopping updater")
+                        # Should probably throw an error here
+                        self.stop_process.clear()
+                        return
             print("Updater stopped")
         else:
             print(str(self.service_type) + " position update process is not running at process stop")
+        # Clear stop flag after process has stopped
+        self.stop_process.clear()
         return
 
 
@@ -424,7 +436,7 @@ class Balloon_Coordinates_Borealis(Balloon_Coordinates):
             req = requests.get("https://borealis.rci.montana.edu/meta/flights?imei={}".format(self.imei))
         except requests.exceptions.RequestException:  # does not catch if there is no internet
             print("No internet connection detected")
-            sys.exit(-1)
+            # sys.exit(-1)
 
         self.latest_flight = req.json()[-1]
 
@@ -505,21 +517,23 @@ class Balloon_Coordinates_Borealis(Balloon_Coordinates):
         while not self.stop_process.is_set():
             if (time.time() - timer) > 5:
                 timer = time.time()
-            # Request packet
-            reqData = Balloon_Coordinates_Borealis._req_packet(self)
+                # Request packet
+                reqData = Balloon_Coordinates_Borealis._req_packet(self)
 
-            # Save last time
-            self.last_time.value = self.latest_time.value
-            # print(reqData)
-            # Record current location
-            with self.process_lock:
-                self.coor_alt[0] = float(reqData['data'][-1][3])
-                self.coor_alt[1] = float(reqData['data'][-1][4])
-                self.coor_alt[2] = float(reqData['data'][-1][5])
-                # Record the last time this position was reported
-                self.latest_time.value = int(reqData['data'][-1][2])
-            print(self.get_coor_alt())
-            return
+                # Save last time
+                self.last_time.value = self.latest_time.value
+                # print(reqData)
+                # Record current location
+                with self.process_lock:
+                    self.coor_alt[0] = float(reqData['data'][-1][3])
+                    self.coor_alt[1] = float(reqData['data'][-1][4])
+                    self.coor_alt[2] = float(reqData['data'][-1][5])
+                    # Record the last time this position was reported
+                    self.latest_time.value = int(reqData['data'][-1][2])
+                print(self.get_coor_alt())
+
+        print("Borealis update process stopping...")
+        return
 
 
     def print_info(self):

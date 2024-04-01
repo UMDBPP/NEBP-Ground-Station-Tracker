@@ -115,6 +115,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.APRS_Radio_comboBox_COMPort.setCurrentIndex(self.comPortCounter - 1)
 
         self.Tracking_button_Refresh.clicked.connect(self.refreshTrackingStatus)
+        self.Tracking_button_Test.clicked.connect(self.testTrackingStatus)
         self.Tracking_button_Reset.clicked.connect(self.resetTrackingStatus)
 
         self.GPSRequestButton.clicked.connect(self.getGSLocation)
@@ -176,6 +177,22 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         return
     
 
+    def testTrackingStatus(self):
+        if type(self.Balloon) is not type(None):
+            status = self.Balloon.test()
+            if status == 0:
+                self.statusBox.setPlainText("Position update process is receiving updates")
+            elif status == 1:
+                self.statusBox.setPlainText("Position update process is running, but no positions have been received yet")
+            elif status == -1:
+                self.statusBox.setPlainText("Position update process is not running at test start")
+            elif status == -2:
+                self.statusBox.setPlainText("Position update process is not running at test end")
+            else:
+                self.statusBox.setPlainText("Unexpected status received from reset function: " + str(status))
+        return
+
+    
     def resetTrackingStatus(self):
         if type(self.Balloon) is not type(None):
             status = self.Balloon.reset()

@@ -516,7 +516,7 @@
           </item>
           <item row="14" column="0" colspan="3">
            <layout class="QGridLayout" name="Source_Options_grid">
-            <item row="0" column="1">
+            <item row="0" column="2">
              <widget class="QPushButton" name="Tracking_button_Reset">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -532,7 +532,20 @@
             <item row="0" column="0">
              <widget class="QPushButton" name="Tracking_button_Refresh">
               <property name="text">
-               <string>Get Latest Status From Selected Source</string>
+               <string>Get Last Location From Selected Source</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QPushButton" name="Tracking_button_Test">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string>Test Connection to Selected Source</string>
               </property>
              </widget>
             </item>
@@ -1211,7 +1224,7 @@
   </connection>
  </connections>
  <buttongroups>
-  <buttongroup name="trackingSource_buttongroup_radioButtons"/>
   <buttongroup name="APRS_Radio_buttongroup_Selection"/>
+  <buttongroup name="trackingSource_buttongroup_radioButtons"/>
  </buttongroups>
 </ui>
