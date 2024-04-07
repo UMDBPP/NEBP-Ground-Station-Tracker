@@ -52,18 +52,18 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.setupUi(self)
 
-        self.IMEIList = Balloon_Coordinates_Borealis.list_IMEI()
-        self.Borealis_comboBox_IMEI.addItem("")
-        if self.IMEIList == []:
-            print("Unable to get IMEI list")
-            self.statusBox.setPlainText("Unable to get IMEI list")
+        self.modemList = Balloon_Coordinates_Borealis.list_modems()
+        self.Borealis_comboBox_modem.addItem("")
+        if self.modemList == []:
+            print("Unable to get modem list")
+            self.statusBox.setPlainText("Unable to get modem list")
         else:
-            for i in range(len(self.IMEIList)):
-                self.Borealis_comboBox_IMEI.addItem(self.IMEIList[i])
+            for i in range(len(self.modemList)):
+                self.Borealis_comboBox_modem.addItem(self.modemList[i])
         self.refreshCallsigns()
 
         self.arduinoConnected = False
-        self.IMEIAssigned = False
+        self.modemAssigned = False
         self.callsignAssigned = False
         self.APRSfiKeyAssigned = False
         self.radioConnected = False
@@ -85,13 +85,15 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.startingAzimuth = 0
         self.startingElevation = 0
 
-        completerIMEI = QCompleter(self.IMEIList)
-        completerIMEI.setFilterMode(Qt.MatchContains)
-        self.Borealis_comboBox_IMEI.setEditable(True)
-        self.Borealis_comboBox_IMEI.setCompleter(completerIMEI)
+        completerModem = QCompleter(self.modemList)
+        completerModem.setFilterMode(Qt.MatchContains)
+        completerModem.setCaseSensitivity(Qt.CaseInsensitive)
+        self.Borealis_comboBox_modem.setEditable(True)
+        self.Borealis_comboBox_modem.setCompleter(completerModem)
 
         completerCallsign = QCompleter(self.callsignList)
         completerCallsign.setFilterMode(Qt.MatchContains)
+        completerCallsign.setCaseSensitivity(Qt.CaseInsensitive)
         self.APRS_fi_comboBox_Callsign.setEditable(True)
         self.APRS_fi_comboBox_Callsign.setCompleter(completerCallsign)
         self.APRS_IS_comboBox_Callsign.setEditable(True)
@@ -104,8 +106,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.comPortCounter = 0
         self.refreshCOMPortLists()
 
-        self.Borealis_button_RefreshIMEI.clicked.connect(self.refreshIMEI)
-        self.Borealis_button_ConfirmIMEI.clicked.connect(self.assignIMEI)
+        self.Borealis_button_RefreshModem.clicked.connect(self.refreshModems)
+        self.Borealis_button_ConfirmModem.clicked.connect(self.assignModem)
         self.APRS_fi_button_ConfirmCallsign.clicked.connect(self.assignCallsign_APRS_fi)
         self.APRS_fi_button_ConfirmAPIKey.clicked.connect(self.assignAPRSfiKey)
         self.APRS_IS_button_ConfirmCallsign.clicked.connect(self.assignCallsign_APRS_IS)
@@ -154,19 +156,19 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.predictingTrack = False
 
 
-    def refreshIMEI(self):
-        # Refresh the Borealis_comboBox_IMEI IMEI list from the Borealis website
-        print("Refreshing IMEI list")
-        self.statusBox.setPlainText("Refreshing IMEI list")
-        self.IMEIList = Balloon_Coordinates_Borealis.list_IMEI()
-        self.Borealis_comboBox_IMEI.clear()
-        self.Borealis_comboBox_IMEI.addItem("")
-        if self.IMEIList == []:
-            print("Unable to get IMEI list")
-            self.statusBox.setPlainText("Unable to get IMEI list")
+    def refreshModems(self):
+        # Refresh the Borealis_comboBox_modem modem list from the Borealis website
+        print("Refreshing modem list")
+        self.statusBox.setPlainText("Refreshing modem list")
+        self.modemList = Balloon_Coordinates_Borealis.list_modems()
+        self.Borealis_comboBox_modem.clear()
+        self.Borealis_comboBox_modem.addItem("")
+        if self.modemList == []:
+            print("Unable to get modem list")
+            self.statusBox.setPlainText("Unable to get modem list")
         else:
-            for i in range(len(self.IMEIList)):
-                self.Borealis_comboBox_IMEI.addItem(self.IMEIList[i])
+            for i in range(len(self.modemList)):
+                self.Borealis_comboBox_modem.addItem(self.modemList[i])
         return
 
 
@@ -209,31 +211,32 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         return
         
 
-    def assignIMEI(self):
-        # this function checks if an IMEI has been selected
-        # if an IMEI has been selected, it creates an instance of the balloon coordinates class using the IMEI
-        # if an IMEI has not been selected, it simply returns
-        if self.Borealis_comboBox_IMEI.currentIndex() != 0:  # SHOULD BE != FOR BOREALIS WEBSITE!
-            self.IMEIAssigned = True
-            print(self.Borealis_comboBox_IMEI.currentText())        
+    def assignModem(self):
+        # this function checks if an modem has been selected
+        # if an modem has been selected, it creates an instance of the balloon coordinates class using the modem
+        # if an modem has not been selected, it simply returns
+        if self.Borealis_comboBox_modem.currentIndex() != 0:  # SHOULD BE != FOR BOREALIS WEBSITE!
+            self.modemAssigned = True
+            print(self.Borealis_comboBox_modem.currentText())        
             if type(self.Balloon) is not type(None):
                 self.Balloon.stop()
                 time.sleep(1)
             del self.Balloon
             self.Balloon = Balloon_Coordinates_Borealis(service_type="Borealis",
-                                                        imei=self.Borealis_comboBox_IMEI.currentText())
+                                                        modem=str(self.Borealis_comboBox_modem.currentText()).split()[0])
             testStr = self.Balloon.print_info()
             self.statusBox.setPlainText(testStr)
             # self.Balloon.getTimeDiff()
         else:
             print("select a balloon ")
-            self.statusBox.setPlainText("Please select a balloon IMEI")
-            self.IMEIAssigned = False
+            self.statusBox.setPlainText("Please select a balloon modem")
+            self.modemAssigned = False
         return
 
 
     def refreshCallsigns(self):
         self.callsignList = Balloon_Coordinates_APRS_IS.list_callsigns()
+        tmpList = self.callsignList
 
         self.APRS_fi_comboBox_Callsign.clear()
         self.APRS_IS_comboBox_Callsign.clear()
@@ -251,10 +254,22 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 if self.APRS_IS_comboBox_Callsign.findText(callsign.split("-")[0]) == -1:
                     self.APRS_IS_comboBox_Callsign.addItem(callsign.split("-")[0])
                     self.APRS_Radio_comboBox_Callsign.addItem(callsign.split("-")[0])
+                    tmpList.append(callsign.split("-")[0])
                 
                 self.APRS_IS_comboBox_Callsign.addItem(callsign)
                 self.APRS_Radio_comboBox_Callsign.addItem(callsign)
                 self.APRS_fi_comboBox_Callsign.addItem(callsign)
+
+        completerCallsign = QCompleter(tmpList)
+        completerCallsign.setFilterMode(Qt.MatchContains)
+        completerCallsign.setCaseSensitivity(Qt.CaseInsensitive)
+        self.APRS_fi_comboBox_Callsign.setEditable(True)
+        self.APRS_fi_comboBox_Callsign.setCompleter(completerCallsign)
+        self.APRS_IS_comboBox_Callsign.setEditable(True)
+        self.APRS_IS_comboBox_Callsign.setCompleter(completerCallsign)
+        self.APRS_Radio_comboBox_Callsign.setEditable(True)
+        self.APRS_Radio_comboBox_Callsign.setCompleter(completerCallsign)
+        return
 
 
     def assignCallsign_APRS_fi(self):
@@ -651,8 +666,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Ground Station Location not assigned")
             self.statusBox.setPlainText("Ground Station location not assigned")
 
-        if self.IMEIAssigned:
-            print("IMEI assigned")
+        if self.modemAssigned:
+            print("Modem assigned")
         elif self.callsignAssigned:
             print("Callsign assigned")
             if type(self.Balloon) is Balloon_Coordinates_APRS_fi and self.APRSfiKeyAssigned:
@@ -667,8 +682,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 print("APRS.fi API key not assigned")
                 self.statusBox.setPlainText("Please set an APRS.fi API key to use APRS")
         else:
-            print("Neither IMEI nor Callsign assigned")
-            self.statusBox.setPlainText("Neither IMEI nor Callsign assigned")
+            print("Neither Modem nor Callsign assigned")
+            self.statusBox.setPlainText("Neither Modem nor Callsign assigned")
 
         if self.arduinoConnected:
             print("Arduino connected!")
@@ -678,7 +693,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         print("\n")
 
-        if(   (self.arduinoConnected and self.IMEIAssigned and self.calibrated and self.GSLocationSet)
+        if(   (self.arduinoConnected and self.modemAssigned and self.calibrated and self.GSLocationSet)
            or (self.arduinoConnected and self.callsignAssigned and self.APRSfiKeyAssigned and self.calibrated and self.GSLocationSet)
            or (self.arduinoConnected and self.callsignAssigned and type(self.Balloon) is Balloon_Coordinates_APRS_IS and self.calibrated and self.GSLocationSet)
            or (self.arduinoConnected and self.callsignAssigned and type(self.Balloon) is Balloon_Coordinates_APRS_SDR and self.calibrated and self.GSLocationSet)

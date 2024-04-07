@@ -21,7 +21,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 -------------------------------------------------------------------------------
 """
-import sys
 import time
 from calendar import timegm
 import requests
@@ -38,9 +37,9 @@ import atexit
 class Balloon_Coordinates:
     # Initialize common variables
     def __init__(self, service_type:str) -> None:
-        self.latest_time = multiprocessing.Value(typecode_or_type='f')
-        self.last_time = multiprocessing.Value(typecode_or_type='f')
-        self.coor_alt = multiprocessing.Array(typecode_or_type='f', size_or_initializer=3)
+        self.latest_time = multiprocessing.Value(typecode_or_type='d')
+        self.last_time = multiprocessing.Value(typecode_or_type='d')
+        self.coor_alt = multiprocessing.Array(typecode_or_type='d', size_or_initializer=3)
 
         self.service_type = service_type
 
@@ -48,6 +47,9 @@ class Balloon_Coordinates:
         self.coor_alt_counter.value = 0
         
         self.stop_process = multiprocessing.Event()
+
+        self.service_start_time = multiprocessing.Value(typecode_or_type='d')
+        self.service_start_time.value = time.time()
 
         atexit.register(self.stop)
         return
@@ -72,7 +74,7 @@ class Balloon_Coordinates:
             print(str(self.service_type) + " position update process is receiving updates")
             return 0
         if self.coor_alt_process.is_alive(): # No change in coor_alt, so is the process still running?
-            print("Position update process is running, but no positions received yet")
+            print(str(self.service_type) + " position update process is running, but no new positions were received during the test")
             return 1
         else:
             print(str(self.service_type) + " position update process is not running at test end")
@@ -142,7 +144,7 @@ class Balloon_Coordinates:
         (Path(__file__).parent / "../logs").mkdir(parents=True, exist_ok=True)
 
         # Create path from executing file (this file) directory to CSV file in logs directory
-        dataPath = Path(__file__).parent / ("../logs/" + time.strftime("%Y-%m-%d_%H-%M-%S_%z", time.gmtime()) + "_position_log.csv")
+        dataPath = Path(__file__).parent / ("../logs/" + time.strftime("%Y-%m-%d_%H-%M-%S_%z", time.gmtime(self.service_start_time.value)) + "_position_log.csv")
         try:
             with dataPath.open('a') as file:
                 logCSV = csv.writer(file)
@@ -478,49 +480,47 @@ class Balloon_Coordinates_APRS_fi(Balloon_Coordinates_APRS):
 
 
 class Balloon_Coordinates_Borealis(Balloon_Coordinates):
-    BOREALIS_EPOCH = 1357023600
-
-    def __init__(self, service_type:str, imei):
+    def __init__(self, service_type:str, modem):
         super().__init__(service_type)
-        self.imei = imei
+        self.modem = modem
 
+        # Try to get modem's flight list
         try:
-            # Grab and Define IMEI's Latest Flight
-            req = requests.get("https://borealis.rci.montana.edu/meta/flights?imei={}".format(self.imei))
+            req = requests.get("https://borealis.rci.montana.edu/api/meta/flights?modem_name={}".format(self.modem))
         except requests.exceptions.RequestException:  # does not catch if there is no internet
             print("No internet connection detected")
             # sys.exit(-1)
 
-        self.latest_flight = req.json()[-1]
-
-        # Define UID
-        flightTime = timegm(time.strptime(self.latest_flight, "%Y-%m-%d")) - Balloon_Coordinates_Borealis.BOREALIS_EPOCH
-        self.uid = (int(flightTime) << 24) | int(self.imei[8:])
+        # Get UID
+        self.uid = req.json()[-1]["uid"]
         print("UID: " + str(self.uid))
+
+        # Set initial time to date of last flight
+        self.latest_time.value = float(time.mktime(time.strptime(req.json()[-1]["date"], "%Y-%m-%d")))
 
         self.start()
         return
 
 
+    # Get a list of modems from Borealis
     @staticmethod
-    def list_IMEI():
-    # grab the list of all of the imei's on the borealis server
+    def list_modems():
+        modems = []
 
-        IMEIs = []
-
-       # Request IMEI List
+       # Request modem list
         try:
-            req = requests.get('https://borealis.rci.montana.edu/meta/imeis')
+            req = requests.get('https://borealis.rci.montana.edu/api/meta/modems')
             data = req.json()
-            for imei in data:
-                IMEIs.append(imei)
+            for modem in data:
+                modems.append(modem["name"] + " - " + modem["partialImei"])
 
         except requests.exceptions.RequestException:
             print("couldn't connect to internet")
             print("Please connect to internet and relaunch")
             # sys.exit(-1)
 
-        return IMEIs
+        modems.sort()
+        return modems
 
 
     # Returns the json object of the latest Borealis Iridium packet.
@@ -529,9 +529,8 @@ class Balloon_Coordinates_Borealis(Balloon_Coordinates):
         # At the moment, any exceptions here will just print the error and return an empty list,
         # but they could (and should) be handled separately later.
         try:
-            # Get latest APRS packet
-            req = requests.get("https://borealis.rci.montana.edu/flight?uid={}".format(self.uid))
-            print("https://borealis.rci.montana.edu/flight?uid={}".format(self.uid))
+            # Get latest position packet
+            req = requests.post("https://borealis.rci.montana.edu/api/update", json={"uid":self.uid, "datetime":(self.latest_time.value + 1)})
             req.raise_for_status() # Raise an HTTPError exception for bad HTTP status codes
         except requests.exceptions.ConnectionError as e:
             # Some kind of network problem
@@ -572,32 +571,37 @@ class Balloon_Coordinates_Borealis(Balloon_Coordinates):
                 timer = time.time()
                 # Request packet
                 reqData = Balloon_Coordinates_Borealis._req_packet(self)
-                # Save last time
-                self.last_time.value = self.latest_time.value
-                # print(reqData)
+                if reqData["update"]:
+                    # Save last time
+                    self.last_time.value = self.latest_time.value
+                    # print(reqData)
 
-                # Record current location
-                self.coor_alt[0] = float(reqData['data'][-1][3])
-                self.coor_alt[1] = float(reqData['data'][-1][4])
-                self.coor_alt[2] = float(reqData['data'][-1][5])
-                # Record the last time this position was reported
-                self.latest_time.value = int(reqData['data'][-1][2])
+                    # Record current location
+                    self.coor_alt[0] = float(reqData["result"][-1]["longitude"])
+                    self.coor_alt[1] = float(reqData["result"][-1]["latitude"])
+                    self.coor_alt[2] = float(reqData["result"][-1]["altitude"])
+                    # Record the last time this position was reported
+                    self.latest_time.value = float(reqData["result"][-1]["datetime"])
 
-                # Increment position update counter
-                with self.coor_alt_counter.get_lock():
-                    self.coor_alt_counter.value += 1
-                # Log received position
-                self.log_coor_alt(comment=self.imei)
+                    # Increment position update counter
+                    with self.coor_alt_counter.get_lock():
+                        self.coor_alt_counter.value += 1
+                    # Log received position
+                    self.log_coor_alt(comment=self.modem)
 
-                print(self.get_coor_alt())
+                    print(self.get_coor_alt())
+                    print(self.latest_time.value)
+                else:
+                    # print("Waiting for Borealis position update...")
+                    continue
 
         print("Borealis update process stopping...")
         return
 
 
     def print_info(self):
-        print("IMEI: ", self.imei)
-        return ("IMEI: " + self.imei + " " + super().print_info())    
+        print("Modem: ", self.modem)
+        return ("Modem: " + self.modem + " " + super().print_info())    
 
 
     pass

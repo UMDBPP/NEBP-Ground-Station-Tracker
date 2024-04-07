@@ -48,7 +48,6 @@ class Ground_Station_Arduino:
         # sends command to arduino to move tilt up
         message = "W" + str(degrees)
         self.COM_Port.write(bytes(message, "utf-8"))
-        print(message)
         time.sleep(.05)
         return
 
