@@ -52,14 +52,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.setupUi(self)
 
-        self.modemList = Balloon_Coordinates_Borealis.list_modems()
-        self.Borealis_comboBox_modem.addItem("")
-        if self.modemList == []:
-            print("Unable to get modem list")
-            self.statusBox.setPlainText("Unable to get modem list")
-        else:
-            for i in range(len(self.modemList)):
-                self.Borealis_comboBox_modem.addItem(self.modemList[i])
+        self.refreshModems()
         self.refreshCallsigns()
 
         self.arduinoConnected = False
@@ -84,22 +77,6 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.startingAzimuth = 0
         self.startingElevation = 0
-
-        completerModem = QCompleter(self.modemList)
-        completerModem.setFilterMode(Qt.MatchContains)
-        completerModem.setCaseSensitivity(Qt.CaseInsensitive)
-        self.Borealis_comboBox_modem.setEditable(True)
-        self.Borealis_comboBox_modem.setCompleter(completerModem)
-
-        completerCallsign = QCompleter(self.callsignList)
-        completerCallsign.setFilterMode(Qt.MatchContains)
-        completerCallsign.setCaseSensitivity(Qt.CaseInsensitive)
-        self.APRS_fi_comboBox_Callsign.setEditable(True)
-        self.APRS_fi_comboBox_Callsign.setCompleter(completerCallsign)
-        self.APRS_IS_comboBox_Callsign.setEditable(True)
-        self.APRS_IS_comboBox_Callsign.setCompleter(completerCallsign)
-        self.APRS_Radio_comboBox_Callsign.setEditable(True)
-        self.APRS_Radio_comboBox_Callsign.setCompleter(completerCallsign)
 
         self.ports = None
         self.portNames = []
@@ -156,23 +133,33 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.predictingTrack = False
 
 
+    # Refresh the Borealis_comboBox_modem modem list from the Borealis website
     def refreshModems(self):
-        # Refresh the Borealis_comboBox_modem modem list from the Borealis website
         print("Refreshing modem list")
         self.statusBox.setPlainText("Refreshing modem list")
         self.modemList = Balloon_Coordinates_Borealis.list_modems()
+
         self.Borealis_comboBox_modem.clear()
         self.Borealis_comboBox_modem.addItem("")
+
         if self.modemList == []:
             print("Unable to get modem list")
             self.statusBox.setPlainText("Unable to get modem list")
         else:
             for i in range(len(self.modemList)):
                 self.Borealis_comboBox_modem.addItem(self.modemList[i])
+
+        completerModem = QCompleter(self.modemList)
+        completerModem.setFilterMode(Qt.MatchContains)
+        completerModem.setCaseSensitivity(Qt.CaseInsensitive)
+        self.Borealis_comboBox_modem.setEditable(True)
+        self.Borealis_comboBox_modem.setCompleter(completerModem)
         return
 
 
     def refreshTrackingStatus(self):
+        print("Refreshing position status")
+        self.statusBox.setPlainText("Refreshing position status")
         if type(self.Balloon) is not type(None):
             testStr = self.Balloon.print_info()
             self.statusBox.setPlainText(testStr)
@@ -180,6 +167,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
     
 
     def testTrackingStatus(self):
+        print("Testing position update")
+        self.statusBox.setPlainText("Testing position update")
         if type(self.Balloon) is not type(None):
             status = self.Balloon.test()
             if status == 0:
@@ -196,6 +185,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
     
     def resetTrackingStatus(self):
+        print("Reseting position update process")
+        self.statusBox.setPlainText("Reseting position update process")
         if type(self.Balloon) is not type(None):
             status = self.Balloon.reset()
             if status == 0:
@@ -235,8 +226,10 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
     def refreshCallsigns(self):
+        print("Refreshing callsign list")
+        self.statusBox.setPlainText("Refreshing callsign list")
         self.callsignList = Balloon_Coordinates_APRS_IS.list_callsigns()
-        tmpList = self.callsignList
+        tmpList = list(self.callsignList)
 
         self.APRS_fi_comboBox_Callsign.clear()
         self.APRS_IS_comboBox_Callsign.clear()
@@ -247,7 +240,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.APRS_Radio_comboBox_Callsign.addItem("")
         
         for idx, callsign in enumerate(self.callsignList):
-            if len(callsign.split("-")) == 1:
+            if len(callsign.split("-")) == 1 and self.APRS_IS_comboBox_Callsign.findText(callsign.split("-")[0]) == -1:
                 self.APRS_IS_comboBox_Callsign.addItem(callsign)
                 self.APRS_Radio_comboBox_Callsign.addItem(callsign)
             else:
@@ -255,7 +248,6 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                     self.APRS_IS_comboBox_Callsign.addItem(callsign.split("-")[0])
                     self.APRS_Radio_comboBox_Callsign.addItem(callsign.split("-")[0])
                     tmpList.append(callsign.split("-")[0])
-                
                 self.APRS_IS_comboBox_Callsign.addItem(callsign)
                 self.APRS_Radio_comboBox_Callsign.addItem(callsign)
                 self.APRS_fi_comboBox_Callsign.addItem(callsign)

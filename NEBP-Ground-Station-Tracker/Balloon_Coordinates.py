@@ -136,9 +136,9 @@ class Balloon_Coordinates:
             self.latest_time.value,
             self.coor_alt[0],
             self.coor_alt[1],
-            self.coor_alt[2],
-            comment
+            self.coor_alt[2]
         ]
+        logData = logData + comment.split(",")
         
         # Make logs directory (if needed)
         (Path(__file__).parent / "../logs").mkdir(parents=True, exist_ok=True)
@@ -587,7 +587,13 @@ class Balloon_Coordinates_Borealis(Balloon_Coordinates):
                     with self.coor_alt_counter.get_lock():
                         self.coor_alt_counter.value += 1
                     # Log received position
-                    self.log_coor_alt(comment=self.modem)
+                    self.log_coor_alt(comment=(self.modem + ","
+                                               + str(reqData["result"][-1]["uid"]) + ","
+                                               + str(reqData["result"][-1]["vertical_velocity"]) + ","
+                                               + str(reqData["result"][-1]["ground_speed"]) + ","
+                                               + str(reqData["result"][-1]["satellites"]) + ","
+                                               + str(reqData["result"][-1]["input_pins"]) + ","
+                                               + str(reqData["result"][-1]["output_pins"])))
 
                     print(self.get_coor_alt())
                     print(self.latest_time.value)
