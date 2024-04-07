@@ -38,18 +38,20 @@ import atexit
 class Balloon_Coordinates:
     # Initialize common variables
     def __init__(self, service_type:str) -> None:
-        self.latest_time = multiprocessing.Value(typecode_or_type='f', lock=False)
-        self.last_time = multiprocessing.Value(typecode_or_type='f', lock=False)
-        self.coor_alt = multiprocessing.Array(typecode_or_type='f', size_or_initializer=3, lock=False)
+        self.latest_time = multiprocessing.Value(typecode_or_type='f')
+        self.last_time = multiprocessing.Value(typecode_or_type='f')
+        self.coor_alt = multiprocessing.Array(typecode_or_type='f', size_or_initializer=3)
 
         self.service_type = service_type
+
+        self.coor_alt_counter = multiprocessing.Value(typecode_or_type='I')
+        self.coor_alt_counter.value = 0
         
         self.stop_process = multiprocessing.Event()
-        self.process_lock = multiprocessing.Lock()
 
         atexit.register(self.stop)
         return
-    
+
 
     # Test whether the position updating is working
     def test(self) -> int:
@@ -107,6 +109,7 @@ class Balloon_Coordinates:
             print("Updater stopped")
         else:
             print(str(self.service_type) + " position update process is not running at process stop")
+
         # Clear stop flag after process has stopped
         self.stop_process.clear()
         return
@@ -120,8 +123,34 @@ class Balloon_Coordinates:
 
     # Return a list of lat, long, and alt from latest position update
     def get_coor_alt(self):
-        with self.process_lock:
-            return [self.coor_alt[0], self.coor_alt[1], self.coor_alt[2]]
+        return [self.coor_alt[0], self.coor_alt[1], self.coor_alt[2]]
+
+
+    # Log received position to file and return logged string
+    def log_coor_alt(self, comment="") -> str:
+        logData = [
+            self.service_type,
+            self.coor_alt_counter.value,
+            self.latest_time.value,
+            self.coor_alt[0],
+            self.coor_alt[1],
+            self.coor_alt[2],
+            comment
+        ]
+        
+        # Make logs directory (if needed)
+        (Path(__file__).parent / "../logs").mkdir(parents=True, exist_ok=True)
+
+        # Create path from executing file (this file) directory to CSV file in logs directory
+        dataPath = Path(__file__).parent / ("../logs/" + time.strftime("%Y-%m-%d_%H-%M-%S_%z", time.gmtime()) + "_position_log.csv")
+        try:
+            with dataPath.open('a') as file:
+                logCSV = csv.writer(file)
+                logCSV.writerow(logData)
+        except IOError:
+            print("Could not open file: ", dataPath.name)
+        
+        return ",".join(map(str,logData))
 
 
     # prints the latest lat, long and alt of the balloon
@@ -140,11 +169,10 @@ class Balloon_Coordinates:
 
     # finds the difference in time between the latest ping and the one before
     def getTimeDiff(self):
-        with self.process_lock:
-            print(self.last_time.value)
+        print(self.last_time.value)
 
-            print(self.latest_time.value - self.last_time.value)
-            return self.latest_time.value - self.last_time.value
+        print(self.latest_time.value - self.last_time.value)
+        return self.latest_time.value - self.last_time.value
 
 
     pass
@@ -225,14 +253,20 @@ class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
             print(frame)
             if frame.source.callsign == self.callsign.split("-")[0].encode('UTF-8') and (not self.callsign_has_ssid or frame.source.ssid == int(self.callsign.split("-")[1])):
                 print("Matching callsign found")
-                with self.process_lock:
-                    self.coor_alt[0] = float(frame.info.lat)
-                    self.coor_alt[1] = float(frame.info.long)
-                    if frame.info.altitude_ft != None:
-                        self.coor_alt[2] = float(frame.info.altitude_ft)*0.3048
-                    if frame.info.timestamp != None:
-                        self.last_time.value = self.latest_time.value
-                        self.latest_time.value = float(frame.info.timestamp)
+                self.coor_alt[0] = float(frame.info.lat)
+                self.coor_alt[1] = float(frame.info.long)
+                if frame.info.altitude_ft != None:
+                    self.coor_alt[2] = float(frame.info.altitude_ft)*0.3048
+                if frame.info.timestamp != None:
+                    self.last_time.value = self.latest_time.value
+                    self.latest_time.value = float(frame.info.timestamp)
+
+                # Increment position update counter
+                with self.coor_alt_counter.get_lock():
+                    self.coor_alt_counter.value += 1
+                # Log received position
+                self.log_coor_alt(comment=self.callsign)
+
                 print(self.get_coor_alt())
 
         with aprs.TCPKISS(host="localhost", port=8001) as aprs_tcp:
@@ -264,14 +298,20 @@ class Balloon_Coordinates_APRS_SerialTNC(Balloon_Coordinates_APRS):
             print(frame)
             if frame.source.callsign == self.callsign.split("-")[0].encode('UTF-8') and (not self.callsign_has_ssid or frame.source.ssid == int(self.callsign.split("-")[1])):
                 print("Matching callsign found")
-                with self.process_lock:
-                    self.coor_alt[0] = float(frame.info.lat)
-                    self.coor_alt[1] = float(frame.info.long)
-                    if frame.info.altitude_ft != None:
-                        self.coor_alt[2] = float(frame.info.altitude_ft)*0.3048
-                    if frame.info.timestamp != None:
-                        self.last_time.value = self.latest_time.value
-                        self.latest_time.value = float(frame.info.timestamp)
+                self.coor_alt[0] = float(frame.info.lat)
+                self.coor_alt[1] = float(frame.info.long)
+                if frame.info.altitude_ft != None:
+                    self.coor_alt[2] = float(frame.info.altitude_ft)*0.3048
+                if frame.info.timestamp != None:
+                    self.last_time.value = self.latest_time.value
+                    self.latest_time.value = float(frame.info.timestamp)
+
+                # Increment position update counter
+                with self.coor_alt_counter.get_lock():
+                    self.coor_alt_counter.value += 1
+                # Log received position
+                self.log_coor_alt(comment=self.callsign)
+
                 print(self.get_coor_alt())
 
         with aprs.SerialKISS(port=self.port, speed=self.baud_rate) as aprs_tnc:
@@ -303,14 +343,20 @@ class Balloon_Coordinates_APRS_IS(Balloon_Coordinates_APRS):
         def __handle_frame(frame):
             print("\nIncoming APRS-IS frame:")
             print(frame)
-            with self.process_lock:
-                self.coor_alt[0] = float(frame.info.lat)
-                self.coor_alt[1] = float(frame.info.long)
-                if frame.info.altitude_ft != None:
-                    self.coor_alt[2] = float(frame.info.altitude_ft)*0.3048
-                if frame.info.timestamp != None:
-                    self.last_time.value = self.latest_time.value
-                    self.latest_time.value = float(frame.info.timestamp)
+            self.coor_alt[0] = float(frame.info.lat)
+            self.coor_alt[1] = float(frame.info.long)
+            if frame.info.altitude_ft != None:
+                self.coor_alt[2] = float(frame.info.altitude_ft)*0.3048
+            if frame.info.timestamp != None:
+                self.last_time.value = self.latest_time.value
+                self.latest_time.value = float(frame.info.timestamp)
+
+            # Increment position update counter
+            with self.coor_alt_counter.get_lock():
+                self.coor_alt_counter.value += 1
+            # Log received position
+            self.log_coor_alt(comment=self.callsign)
+
             print(self.get_coor_alt())
 
         with aprs.TCP(host="noam.aprs2.net", port=14580, command=aprsFilter) as aprs_tcp:
@@ -408,15 +454,22 @@ class Balloon_Coordinates_APRS_fi(Balloon_Coordinates_APRS):
 
             # Save last time
             self.last_time.value = self.latest_time.value
-            print(reqData)
+            # print(reqData)
+
             # Record current location
-            with self.process_lock:
-                self.coor_alt = [float(reqData["entries"][0]["lat"]),
-                                float(reqData["entries"][0]["lng"]),
-                                float(reqData["entries"][0]["altitude"])]
-                # Record the last time this position was reported
-                self.latest_time.value = int(reqData["entries"][0]["lasttime"])
-                print(self.coor_alt)
+            self.coor_alt = [float(reqData["entries"][0]["lat"]),
+                            float(reqData["entries"][0]["lng"]),
+                            float(reqData["entries"][0]["altitude"])]
+            # Record the last time this position was reported
+            self.latest_time.value = int(reqData["entries"][0]["lasttime"])
+
+            # Increment position update counter
+            with self.coor_alt_counter.get_lock():
+                self.coor_alt_counter.value += 1
+            # Log received position
+            self.log_coor_alt(comment=self.callsign)
+
+            print(self.get_coor_alt())
             return
 
 
@@ -519,17 +572,23 @@ class Balloon_Coordinates_Borealis(Balloon_Coordinates):
                 timer = time.time()
                 # Request packet
                 reqData = Balloon_Coordinates_Borealis._req_packet(self)
-
                 # Save last time
                 self.last_time.value = self.latest_time.value
                 # print(reqData)
+
                 # Record current location
-                with self.process_lock:
-                    self.coor_alt[0] = float(reqData['data'][-1][3])
-                    self.coor_alt[1] = float(reqData['data'][-1][4])
-                    self.coor_alt[2] = float(reqData['data'][-1][5])
-                    # Record the last time this position was reported
-                    self.latest_time.value = int(reqData['data'][-1][2])
+                self.coor_alt[0] = float(reqData['data'][-1][3])
+                self.coor_alt[1] = float(reqData['data'][-1][4])
+                self.coor_alt[2] = float(reqData['data'][-1][5])
+                # Record the last time this position was reported
+                self.latest_time.value = int(reqData['data'][-1][2])
+
+                # Increment position update counter
+                with self.coor_alt_counter.get_lock():
+                    self.coor_alt_counter.value += 1
+                # Log received position
+                self.log_coor_alt(comment=self.imei)
+
                 print(self.get_coor_alt())
 
         print("Borealis update process stopping...")

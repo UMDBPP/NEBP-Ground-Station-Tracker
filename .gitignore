@@ -1,4 +1,8 @@
-# Entries pulled from https://github.com/github/gitignore
+# Custom Entries
+logs/
+
+
+# Entries from https://github.com/github/gitignore
 
 #========== gitignore/Global/VisualStudioCode.gitignore ==========#
 
