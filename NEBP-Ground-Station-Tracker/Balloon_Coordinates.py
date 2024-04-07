@@ -577,8 +577,8 @@ class Balloon_Coordinates_Borealis(Balloon_Coordinates):
                     # print(reqData)
 
                     # Record current location
-                    self.coor_alt[0] = float(reqData["result"][-1]["longitude"])
-                    self.coor_alt[1] = float(reqData["result"][-1]["latitude"])
+                    self.coor_alt[0] = float(reqData["result"][-1]["latitude"])
+                    self.coor_alt[1] = float(reqData["result"][-1]["longitude"])
                     self.coor_alt[2] = float(reqData["result"][-1]["altitude"])
                     # Record the last time this position was reported
                     self.latest_time.value = float(reqData["result"][-1]["datetime"])
