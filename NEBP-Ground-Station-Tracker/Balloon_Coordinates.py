@@ -128,12 +128,39 @@ class Balloon_Coordinates:
         return [self.coor_alt[0], self.coor_alt[1], self.coor_alt[2]]
 
 
+    # Initialize log file with header line
+    def _initialize_log_file(self, custom_fields=""):
+        # Initialize default header
+        header = ["Service_Type",
+                  "Packet_Counter",
+                  "Latest_Time",
+                  "Latitude",
+                  "Longitude",
+                  "Altitude"]
+        # Add custom fields to header
+        header = header + custom_fields.split(",")
+
+        # Make logs directory (if needed)
+        (Path(__file__).parent / "../logs").mkdir(parents=True, exist_ok=True)
+
+        # Create path from executing file (this file) directory to CSV file in logs directory
+        dataPath = Path(__file__).parent / ("../logs/" + time.strftime("%Y-%m-%d_%H-%M-%S_%z", time.localtime(self.service_start_time.value)) + "_position_log.csv")
+        try:
+            with dataPath.open('a') as file:
+                logCSV = csv.writer(file)
+                logCSV.writerow(header)
+            return True
+        except IOError:
+            print("Could not open file: ", dataPath.name)
+            return False
+
+
     # Log received position to file and return logged string
-    def log_coor_alt(self, comment="") -> str:
+    def _log_coor_alt(self, comment="") -> str:
         logData = [
             self.service_type,
             self.coor_alt_counter.value,
-            self.latest_time.value,
+            time.strftime("%Y-%m-%d_%H-%M-%S_%z", time.localtime(self.latest_time.value)),
             self.coor_alt[0],
             self.coor_alt[1],
             self.coor_alt[2]
@@ -144,7 +171,7 @@ class Balloon_Coordinates:
         (Path(__file__).parent / "../logs").mkdir(parents=True, exist_ok=True)
 
         # Create path from executing file (this file) directory to CSV file in logs directory
-        dataPath = Path(__file__).parent / ("../logs/" + time.strftime("%Y-%m-%d_%H-%M-%S_%z", time.gmtime(self.service_start_time.value)) + "_position_log.csv")
+        dataPath = Path(__file__).parent / ("../logs/" + time.strftime("%Y-%m-%d_%H-%M-%S_%z", time.localtime(self.service_start_time.value)) + "_position_log.csv")
         try:
             with dataPath.open('a') as file:
                 logCSV = csv.writer(file)
@@ -225,6 +252,8 @@ class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
     def __init__(self, service_type:str, callsign:str):
         super().__init__(service_type, callsign)
 
+        self._initialize_log_file("Callsign")
+        
         self.start()
         return
     
@@ -267,7 +296,7 @@ class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
                 with self.coor_alt_counter.get_lock():
                     self.coor_alt_counter.value += 1
                 # Log received position
-                self.log_coor_alt(comment=self.callsign)
+                self._log_coor_alt(comment=self.callsign)
 
                 print(self.get_coor_alt())
 
@@ -289,6 +318,8 @@ class Balloon_Coordinates_APRS_SerialTNC(Balloon_Coordinates_APRS):
         super().__init__(service_type, callsign)
         self.port = port
         self.baud_rate = baud_rate
+
+        self._initialize_log_file("Callsign")
 
         self.start()
         return
@@ -312,7 +343,7 @@ class Balloon_Coordinates_APRS_SerialTNC(Balloon_Coordinates_APRS):
                 with self.coor_alt_counter.get_lock():
                     self.coor_alt_counter.value += 1
                 # Log received position
-                self.log_coor_alt(comment=self.callsign)
+                self._log_coor_alt(comment=self.callsign)
 
                 print(self.get_coor_alt())
 
@@ -333,6 +364,8 @@ class Balloon_Coordinates_APRS_IS(Balloon_Coordinates_APRS):
     def __init__(self, service_type:str, callsign:str):
         super().__init__(service_type, callsign)
 
+        self._initialize_log_file("Callsign")
+        
         self.start()
         return
     
@@ -357,7 +390,7 @@ class Balloon_Coordinates_APRS_IS(Balloon_Coordinates_APRS):
             with self.coor_alt_counter.get_lock():
                 self.coor_alt_counter.value += 1
             # Log received position
-            self.log_coor_alt(comment=self.callsign)
+            self._log_coor_alt(comment=self.callsign)
 
             print(self.get_coor_alt())
 
@@ -394,6 +427,8 @@ class Balloon_Coordinates_APRS_fi(Balloon_Coordinates_APRS):
             print("\nPossible network connection problem or API failure response.\nExiting...")
             SystemExit(reqTest)
 
+        self._initialize_log_file("Callsign")
+        
         self.start()
         return
     
@@ -469,7 +504,7 @@ class Balloon_Coordinates_APRS_fi(Balloon_Coordinates_APRS):
             with self.coor_alt_counter.get_lock():
                 self.coor_alt_counter.value += 1
             # Log received position
-            self.log_coor_alt(comment=self.callsign)
+            self._log_coor_alt(comment=self.callsign)
 
             print(self.get_coor_alt())
             return
@@ -498,6 +533,8 @@ class Balloon_Coordinates_Borealis(Balloon_Coordinates):
         # Set initial time to date of last flight
         self.latest_time.value = float(time.mktime(time.strptime(req.json()[-1]["date"], "%Y-%m-%d")))
 
+        self._initialize_log_file("Modem,UID,Vertical_Velocity,Ground_Speed,Satellites,Input_Pins,Output_Pins")
+        
         self.start()
         return
 
@@ -587,7 +624,7 @@ class Balloon_Coordinates_Borealis(Balloon_Coordinates):
                     with self.coor_alt_counter.get_lock():
                         self.coor_alt_counter.value += 1
                     # Log received position
-                    self.log_coor_alt(comment=(self.modem + ","
+                    self._log_coor_alt(comment=(self.modem + ","
                                                + str(reqData["result"][-1]["uid"]) + ","
                                                + str(reqData["result"][-1]["vertical_velocity"]) + ","
                                                + str(reqData["result"][-1]["ground_speed"]) + ","
