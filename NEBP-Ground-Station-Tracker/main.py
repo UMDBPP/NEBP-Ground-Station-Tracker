@@ -29,7 +29,7 @@ from PyQt5.QtCore import QThread, QObject, pyqtSignal, Qt, pyqtSlot
 from PyQt5.QtWidgets import QCompleter, QApplication, QDesktopWidget
 from Ground_Station_GUI import Ui_MainWindow
 import sys
-from Balloon_Coordinates import Balloon_Coordinates_Borealis, Balloon_Coordinates_APRS_fi, Balloon_Coordinates_APRS_IS, Balloon_Coordinates_APRS_SDR, Balloon_Coordinates_APRS_SerialTNC
+from Balloon_Coordinates import Balloon_Coordinates_Borealis, Balloon_Coordinates_APRS_fi, Balloon_Coordinates_APRS_IS, Balloon_Coordinates_APRS_SDR, Balloon_Coordinates_APRS_SerialTNC, Balloon_Coordinates_Test
 from satelliteTrackingMath import trackMath
 from Ground_Station_Arduino import Ground_Station_Arduino
 import serial.tools.list_ports
@@ -43,6 +43,18 @@ import csv
 
 # todo: clean up this code and better document
 
+# ======================================
+import numpy as np
+
+from matplotlib.backends.backend_qtagg import FigureCanvas
+from matplotlib.backends.backend_qtagg import \
+    NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
+
+from mpl_toolkits.basemap import Basemap
+from matplotlib.dates import DateFormatter
+# ======================================
+
 
 class Window(QtWidgets.QMainWindow, Ui_MainWindow):
     # This class connects functionality to buttons in the GUI
@@ -52,7 +64,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.setupUi(self)
 
-        self.refreshModems()
+        # self.refreshModems()
         self.refreshCallsigns()
 
         self.arduinoConnected = False
@@ -92,6 +104,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.APRS_Radio_button_refreshCOMPorts.clicked.connect(self.refreshCOMPortLists)
         self.APRS_Radio_button_ConnectRadio.clicked.connect(self.connectRadio_APRS_Radio)
         self.APRS_Radio_comboBox_COMPort.setCurrentIndex(self.comPortCounter - 1)
+        self.Test_Source_button_Confirm.clicked.connect(self.init_test_source)
 
         self.Tracking_button_Refresh.clicked.connect(self.refreshTrackingStatus)
         self.Tracking_button_Test.clicked.connect(self.testTrackingStatus)
@@ -131,6 +144,63 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         # self.showFullScreen()
 
         self.predictingTrack = False
+
+        # Create figure canvas for map and altitude graph
+        self.map_canvas = FigureCanvas(Figure(layout="constrained"))
+        # self.Map_gridLayout.addWidget(NavigationToolbar(map_canvas, self))
+
+        # Remove temporary widget and replace with the map widget
+        self.map_canvas.setSizePolicy(self.tmp_widget.sizePolicy())
+        self.directControls_grid.removeWidget(self.tmp_widget)
+        self.directControls_grid.addWidget(self.map_canvas, 12, 2, 1, 3)
+
+        self._initialize_map()
+
+
+    # Debug test source replaying logged balloon positions
+    def init_test_source(self):
+        self.Balloon = Balloon_Coordinates_Test("TEST", int(self.Test_Source_spinBox_Period.value()))
+        testStr = self.Balloon.print_info()
+        self.statusBox.setPlainText(testStr)
+        return
+
+
+    # Initialize position map and altitude graph
+    def _initialize_map(self, gs_lon:float=-77.5, gs_lat:float=39.5):
+        # Reset figure
+        self.map_canvas.figure.clear()
+        # Create new subplots and get axes
+        self.map_ax, self.altitude_ax = self.map_canvas.figure.subplots(2, 1, height_ratios=[2, 1])
+        
+        # Create map centered on ground station
+        self.basemap = Basemap(width=400000,height=200000,\
+                   resolution='i',projection='cass',lon_0=gs_lon,lat_0=gs_lat, ax=self.map_ax)
+        # Draw map features
+        self.basemap.drawcoastlines()
+        self.basemap.fillcontinents(color='green',lake_color='aqua')
+        self.basemap.drawrivers(color='aqua')
+        # Draw parallels and meridians.
+        self.basemap.drawparallels(np.arange(int(gs_lat-20), int(gs_lat+20), 1.),labels=[1,0,0,0],fontsize=10)
+        self.basemap.drawmeridians(np.arange(int(gs_lon-20), int(gs_lon+20), 1.),labels=[0,0,0,1],fontsize=10)
+        self.basemap.drawmapboundary(fill_color='aqua')
+        # self.basemap.drawcounties() # seems slow
+        self.basemap.drawstates()
+        # Plot ground station location on map
+        xpt,ypt = self.basemap(gs_lon, gs_lat)
+        self.basemap.plot(xpt,ypt,'rx')
+        # Initialize balloon location arrays
+        self.xpt = []
+        self.ypt = []
+        
+        # Set altitude graph options
+        self.altitude_ax.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
+        self.altitude_ax.minorticks_on()
+        self.altitude_ax.grid()
+        self.altitude_ax.set_ylabel("Altitude (m)")
+        self.altitude_ax.set_xlabel("Time")
+
+        # Draw figure
+        self.map_canvas.figure.canvas.draw()
 
 
     # Refresh the Borealis_comboBox_modem modem list from the Borealis website
@@ -386,6 +456,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             self.APRSfiKeyAssigned = False
         return
     
+
     def connectRadio_APRS_Radio(self):
         if self.APRS_Radio_comboBox_COMPort.currentText() != 0:
             if self.APRS_Radio_lineEdit_Baudrate.text() != 0 and str(self.APRS_Radio_lineEdit_Baudrate.text()).isdigit():
@@ -424,10 +495,10 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.ports = serial.tools.list_ports.comports()
         self.portNames = []
         self.comPortCounter = 0
-        for port, desc, hwid in sorted(self.ports):
+        for port, desc, hwid in sorted(self.ports, reverse=True):
             # self.Arduino_comboBox_COMPort.addItem("[{}] {}: {}".format(i, port, desc))
-            self.Arduino_comboBox_COMPort.addItem(desc)
-            self.APRS_Radio_comboBox_COMPort.addItem(desc)
+            self.Arduino_comboBox_COMPort.addItem(port)
+            self.APRS_Radio_comboBox_COMPort.addItem(port)
             self.portNames.append("{}".format(port))
             self.comPortCounter += 1
 
@@ -547,6 +618,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
                 self.statusBox.setPlainText("Ground station location entered successfully!")
                 self.GSLocationSet = True
+
+                self._initialize_map(self.GSLong, self.GSLat)
             else:
                 self.statusBox.setPlainText("Please connect arduino")
                 self.GSLocationSet = False
@@ -673,6 +746,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             else:
                 print("APRS.fi API key not assigned")
                 self.statusBox.setPlainText("Please set an APRS.fi API key to use APRS")
+        elif type(self.Balloon) is Balloon_Coordinates_Test:
+            pass
         else:
             print("Neither Modem nor Callsign assigned")
             self.statusBox.setPlainText("Neither Modem nor Callsign assigned")
@@ -689,7 +764,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
            or (self.arduinoConnected and self.callsignAssigned and self.APRSfiKeyAssigned and self.calibrated and self.GSLocationSet)
            or (self.arduinoConnected and self.callsignAssigned and type(self.Balloon) is Balloon_Coordinates_APRS_IS and self.calibrated and self.GSLocationSet)
            or (self.arduinoConnected and self.callsignAssigned and type(self.Balloon) is Balloon_Coordinates_APRS_SDR and self.calibrated and self.GSLocationSet)
-           or (self.arduinoConnected and self.callsignAssigned and type(self.Balloon) is Balloon_Coordinates_APRS_SerialTNC and self.calibrated and self.GSLocationSet)):
+           or (self.arduinoConnected and self.callsignAssigned and type(self.Balloon) is Balloon_Coordinates_APRS_SerialTNC and self.calibrated and self.GSLocationSet)
+           or (self.arduinoConnected and type(self.Balloon) is Balloon_Coordinates_Test and self.calibrated and self.GSLocationSet)):
             
             if self.predictingTrack:
                 self.statusBox.setPlainText("Starting tracking with predictions!")
@@ -780,12 +856,29 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         return
 
 
+    # Function to plot received coordinates on the position map and altitude graph
+    def _update_map_altitude(self, lon:float, lat:float, alt:float, latest_time:float):
+        # Record balloon locations and plot on map
+        xpt,ypt = self.basemap(lon, lat)
+        self.xpt.append(xpt)
+        self.ypt.append(ypt)
+        self.basemap.plot(self.xpt,self.ypt,'bo-')
+        self.basemap.plot(self.xpt[-1],self.ypt[-1],'yo')
+
+        # Plot latest altitude on graph
+        self.altitude_ax.plot(datetime.fromtimestamp(latest_time), alt, "bo-")
+        
+        # Draw figure
+        self.map_canvas.figure.canvas.draw()
+
+
 
 class Worker(QObject):
     # worker class to track without making the GUI hang
     finished = pyqtSignal()
 
     calcSignal = pyqtSignal(float, float, float)
+    coor_signal = pyqtSignal(float, float, float, float)
 
     i = 0
 
@@ -795,6 +888,9 @@ class Worker(QObject):
         # if a new position has been found, calculate the azimuth and elevation to point at the new location
         # send the motors a command to move to the new position
         last_Balloon_Coor = [0, 0, 0]
+
+        self.calcSignal.connect(MainWindow.displayCalculations)
+        self.coor_signal.connect(MainWindow._update_map_altitude)
 
         while MainWindow.tracking:
             Balloon_Coor = MainWindow.Balloon.get_coor_alt()
@@ -811,13 +907,16 @@ class Worker(QObject):
 
             print(str(self.i) + " Distance " + str(distance) + " Azimuth: " + str(newAzimuth) + ", Elevation: " + str(newElevation))
 
-            self.calcSignal.connect(MainWindow.displayCalculations)  # this seems to happen a lot for some reason
             self.calcSignal.emit(distance, newAzimuth, newElevation)
+            self.coor_signal.emit(Balloon_Coor[1], Balloon_Coor[0], Balloon_Coor[2], MainWindow.Balloon.get_latest_timestamp())
 
             MainWindow.GSArduino.move_position(newAzimuth, newElevation)
 
             self.i += 1
             last_Balloon_Coor = Balloon_Coor
+
+            #============================
+
 
         print("All done!")
         print(str(self.i) + " location updates processed")

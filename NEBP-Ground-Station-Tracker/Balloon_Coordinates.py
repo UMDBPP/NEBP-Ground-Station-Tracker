@@ -34,6 +34,7 @@ import subprocess
 import atexit
 
 
+# Base class for receiving balloon coordinates
 class Balloon_Coordinates:
     # Initialize common variables
     def __init__(self, service_type:str) -> None:
@@ -185,14 +186,12 @@ class Balloon_Coordinates:
     # prints the latest lat, long and alt of the balloon
     def print_info(self):
         local_coor_alt = self.get_coor_alt()
-        latest_tm = time.gmtime(self.latest_time.value)
-        print("Date: {}-{}-{}".format(latest_tm[0], latest_tm[1], latest_tm[2]))
-        print("Coordinates: ({}, {})".format(local_coor_alt[0], local_coor_alt[1]))
-        print("Altitude: {}".format(local_coor_alt[2]))
+        latest_tm = time.localtime(self.latest_time.value)
 
-        infoStr = "Date: {}-{}-{}".format(latest_tm[0], latest_tm[1], latest_tm[2])
-        infoStr += "\n" + "Coordinates: ({}, {}) Altitude: {} m".format(local_coor_alt[0], local_coor_alt[1], local_coor_alt[2])
-        infoStr += "\n Balloon Selected!"
+        infoStr = "Time: {}-{:02.0f}-{:02.0f} {:02.0f}:{:02.0f}:{:02.0f}".format(latest_tm[0], latest_tm[1], latest_tm[2], latest_tm[3], latest_tm[4], latest_tm[5])
+        infoStr += "\n" + "Coordinates: ({}, {})".format(local_coor_alt[0], local_coor_alt[1])
+        infoStr += "\n" + "Altitude: {}".format(local_coor_alt[2])
+        print(infoStr)
         return infoStr
 
 
@@ -202,12 +201,75 @@ class Balloon_Coordinates:
 
         print(self.latest_time.value - self.last_time.value)
         return self.latest_time.value - self.last_time.value
+    
+
+    # Return last received Unix timestamp
+    def get_latest_timestamp(self):
+        return self.latest_time.value
 
 
     pass
 
 
 
+# Debug class. Replays logged positions from test.log
+class Balloon_Coordinates_Test(Balloon_Coordinates):
+    def __init__(self, service_type:str, period=5) -> None:
+        super().__init__(service_type)
+        self.coor_alt_list = []
+        self.period = period
+        self.start()
+        return
+
+
+    # Load the list of positions from test.log
+    def start(self):
+        # Create path from executing file (this file) directory to CSV file in data directory
+        dataPath = Path(__file__).parent / "../data/test.csv"
+        try:
+            with dataPath.open() as file:
+                coor_alt_CSV = csv.reader(file)
+
+                for line in coor_alt_CSV:
+                    self.coor_alt_list.append([float(line[3]), float(line[4]), float(line[5]), line[2]])
+
+        except IOError:
+            print("Could not read file: ", dataPath.name)
+            # return -1
+        
+        super().start()
+
+
+    # Update coordinates from the internal position list
+    def _update_coor_alt(self):
+        # Loop the list of test points until process stops
+        while not self.stop_process.is_set():
+            # Loop through test points
+            for coor_alt in self.coor_alt_list:
+                # Check for process stopping
+                if self.stop_process.is_set():
+                    break
+                # Update position from test points
+                self.coor_alt[0] = coor_alt[0]
+                self.coor_alt[1] = coor_alt[1]
+                self.coor_alt[2] = coor_alt[2]
+                # Record last time
+                self.last_time.value = self.latest_time.value
+                # Check whether test point time is in the human-readable format
+                if len(str(coor_alt[3]).split('-')) > 1:
+                    # Record time value
+                    self.latest_time.value = time.strptime(coor_alt[3], "%Y-%m-%d_%H-%M-%S_%z")
+                else: # Otherwise, should be in Unix time
+                    self.latest_time.value = float(coor_alt[3])
+                # Sleep for the given update period
+                time.sleep(self.period)
+            
+
+    pass
+
+
+
+# Base class for balloon coordinates classes that receive via APRS
 class Balloon_Coordinates_APRS(Balloon_Coordinates):
     def __init__(self, service_type:str, callsign:str) -> None:
         super().__init__(service_type)
@@ -248,6 +310,7 @@ class Balloon_Coordinates_APRS(Balloon_Coordinates):
 
 
 
+# Class to receive balloon coordinates via APRS from a USB SDR
 class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
     def __init__(self, service_type:str, callsign:str):
         super().__init__(service_type, callsign)
@@ -313,6 +376,7 @@ class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
 
 
 
+# Class to receive balloon coordinates via APRS from a serial TNC connection
 class Balloon_Coordinates_APRS_SerialTNC(Balloon_Coordinates_APRS):
     def __init__(self, service_type:str, callsign:str, port:str, baud_rate:str):
         super().__init__(service_type, callsign)
@@ -360,6 +424,7 @@ class Balloon_Coordinates_APRS_SerialTNC(Balloon_Coordinates_APRS):
 
 
 
+# Class to receive balloon coordinates via APRS from the main APRS servers. Requires Internet connection
 class Balloon_Coordinates_APRS_IS(Balloon_Coordinates_APRS):
     def __init__(self, service_type:str, callsign:str):
         super().__init__(service_type, callsign)
@@ -407,6 +472,7 @@ class Balloon_Coordinates_APRS_IS(Balloon_Coordinates_APRS):
 
 
 
+# Class to receive balloon coordinates via APRS from APRS.fi. Requires Internet connection
 class Balloon_Coordinates_APRS_fi(Balloon_Coordinates_APRS):
     def __init__(self, service_type:str, callsign:str, apikey:str):
         super().__init__(service_type, callsign)
@@ -514,6 +580,7 @@ class Balloon_Coordinates_APRS_fi(Balloon_Coordinates_APRS):
 
 
 
+# Class to receive balloon coordinates via Iridium packets from Montana's Borealis site. Requires Internet connection
 class Balloon_Coordinates_Borealis(Balloon_Coordinates):
     def __init__(self, service_type:str, modem):
         super().__init__(service_type)
