@@ -152,7 +152,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         # Remove temporary widget and replace with the map widget
         self.map_canvas.setSizePolicy(self.tmp_widget.sizePolicy())
         self.directControls_grid.removeWidget(self.tmp_widget)
-        self.directControls_grid.addWidget(self.map_canvas, 12, 2, 1, 3)
+        self.directControls_grid.addWidget(self.map_canvas, 12, 2, 1, 2)
 
         self._initialize_map()
 
