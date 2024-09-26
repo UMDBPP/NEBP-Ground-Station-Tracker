@@ -781,10 +781,13 @@ class Ui_MainWindow(object):
         self.Test_Source_spinBox_Period.setSuffix(_translate("MainWindow", " seconds"))
         self.APRS_Radio_label_SelectRadio_2.setText(_translate("MainWindow", "Set Test Source Update Period:"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.TrackingArduino_tab), _translate("MainWindow", "Tracking Source/Arduino"))
+        self.GSLatBox.setText(_translate("MainWindow", "39.5"))
+        self.GSLongBox.setText(_translate("MainWindow", "-77.5"))
         self.GSAlt_label.setText(_translate("MainWindow", "Ground Station Altitude (m): "))
         self.GSLong_label.setText(_translate("MainWindow", "Ground Station Longitude: "))
         self.GPSRequestButton.setText(_translate("MainWindow", "Request Ground Station Location\n"
 "(GPS Shield Required)"))
+        self.GSAltBox.setText(_translate("MainWindow", "0"))
         self.GSLat_label.setText(_translate("MainWindow", "Ground Station Latitude: "))
         self.confirmGSLocationButton.setText(_translate("MainWindow", "Set Ground Station Location"))
         self.degreesPerClick_label.setText(_translate("MainWindow", "Degrees Per Click:"))

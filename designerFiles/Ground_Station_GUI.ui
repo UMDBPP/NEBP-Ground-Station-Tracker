@@ -738,6 +738,9 @@
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
+            <property name="text">
+             <string>39.5</string>
+            </property>
            </widget>
           </item>
           <item row="6" column="3">
@@ -747,6 +750,9 @@
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
+            </property>
+            <property name="text">
+             <string>-77.5</string>
             </property>
            </widget>
           </item>
@@ -785,6 +791,9 @@
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
+            </property>
+            <property name="text">
+             <string>0</string>
             </property>
            </widget>
           </item>

@@ -598,31 +598,27 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
     def setGSLocation(self):
-        # this ensures that the arduino is connected, and valid text is present in the gs location text boxes
+        # this ensures that valid text is present in the gs location text boxes
         # if the values present can be converted to floats, the starting location of the gs is set
         try:
-            if self.arduinoConnected:
-                latStr = self.GSLatBox.text()
-                latStr = latStr.strip()
-                self.GSLat = float(latStr)
+            latStr = self.GSLatBox.text()
+            latStr = latStr.strip()
+            self.GSLat = float(latStr)
 
-                print(self.GSLat)
+            print(self.GSLat)
 
-                longStr = self.GSLongBox.text()
-                self.GSLong = float(longStr)
-                print(self.GSLong)
+            longStr = self.GSLongBox.text()
+            self.GSLong = float(longStr)
+            print(self.GSLong)
 
-                altStr = self.GSAltBox.text()
-                self.GSAlt = float(altStr)
-                print(self.GSAlt)
+            altStr = self.GSAltBox.text()
+            self.GSAlt = float(altStr)
+            print(self.GSAlt)
 
-                self.statusBox.setPlainText("Ground station location entered successfully!")
-                self.GSLocationSet = True
+            self.statusBox.setPlainText("Ground station location entered successfully!")
+            self.GSLocationSet = True
 
-                self._initialize_map(self.GSLong, self.GSLat)
-            else:
-                self.statusBox.setPlainText("Please connect arduino")
-                self.GSLocationSet = False
+            self._initialize_map(self.GSLong, self.GSLat)
         except ValueError:
             print("numbers only for GPS location (decimal degrees)")
             self.statusBox.setPlainText("Invalid GPS location entered. Please only enter numbers")
