@@ -25,8 +25,8 @@ https://pypi.org/project/PyQt5/
 """
 
 from PyQt5 import QtWidgets
-from PyQt5.QtCore import QThread, QObject, pyqtSignal, Qt, pyqtSlot
-from PyQt5.QtWidgets import QCompleter, QApplication, QDesktopWidget
+from PyQt5.QtCore import QThread, QObject, pyqtSignal, Qt
+from PyQt5.QtWidgets import QCompleter, QApplication, QTreeWidgetItem
 from Ground_Station_GUI import Ui_MainWindow
 import sys
 from Balloon_Coordinates import Balloon_Coordinates_Borealis, Balloon_Coordinates_APRS_fi, Balloon_Coordinates_APRS_IS, Balloon_Coordinates_APRS_SDR, Balloon_Coordinates_APRS_SerialTNC, Balloon_Coordinates_Test
@@ -34,12 +34,9 @@ from satelliteTrackingMath import trackMath
 from Ground_Station_Arduino import Ground_Station_Arduino
 import serial.tools.list_ports
 import time
-#from pylab import *
 from sunposition import sunpos
 from datetime import datetime
 import csv
-# import statistics
-# import numpy as np
 
 # todo: clean up this code and better document
 
@@ -47,8 +44,8 @@ import csv
 import numpy as np
 
 from matplotlib.backends.backend_qtagg import FigureCanvas
-from matplotlib.backends.backend_qtagg import \
-    NavigationToolbar2QT as NavigationToolbar
+# from matplotlib.backends.backend_qtagg import \
+#     NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 
 from mpl_toolkits.basemap import Basemap
@@ -95,6 +92,12 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.comPortCounter = 0
         self.refreshCOMPortLists()
 
+        self.latest_update = {}
+        self.updateThread = None
+        self.updateWorker = None
+        self.updating = False
+
+
         self.Borealis_button_RefreshModem.clicked.connect(self.refreshModems)
         self.Borealis_button_ConfirmModem.clicked.connect(self.assignModem)
         self.APRS_fi_button_ConfirmCallsign.clicked.connect(self.assignCallsign_APRS_fi)
@@ -109,6 +112,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.Tracking_button_Refresh.clicked.connect(self.refreshTrackingStatus)
         self.Tracking_button_Test.clicked.connect(self.testTrackingStatus)
         self.Tracking_button_Reset.clicked.connect(self.resetTrackingStatus)
+        self.Tracking_button_Stop.clicked.connect(self.stopTrackingStatus)
 
         self.GPSRequestButton.clicked.connect(self.getGSLocation)
         self.confirmGSLocationButton.clicked.connect(self.setGSLocation)
@@ -162,6 +166,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.Balloon = Balloon_Coordinates_Test("TEST", int(self.Test_Source_spinBox_Period.value()))
         testStr = self.Balloon.print_info()
         self.statusBox.setPlainText(testStr)
+        self._start_updating()
         return
 
 
@@ -242,14 +247,19 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         if type(self.Balloon) is not type(None):
             status = self.Balloon.test()
             if status == 0:
+                print("Position update process is receiving updates")
                 self.statusBox.setPlainText("Position update process is receiving updates")
             elif status == 1:
+                print("Position update process is running, but no positions have been received yet")
                 self.statusBox.setPlainText("Position update process is running, but no positions have been received yet")
             elif status == -1:
+                print("Position update process is not running at test start")
                 self.statusBox.setPlainText("Position update process is not running at test start")
             elif status == -2:
+                print("Position update process is not running at test end")
                 self.statusBox.setPlainText("Position update process is not running at test end")
             else:
+                print("Unexpected status received from reset function: " + str(status))
                 self.statusBox.setPlainText("Unexpected status received from reset function: " + str(status))
         return
 
@@ -260,17 +270,44 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         if type(self.Balloon) is not type(None):
             status = self.Balloon.reset()
             if status == 0:
+                print("Position update process successfully restarted and receiving")
                 self.statusBox.setPlainText("Position update process successfully restarted and receiving")
             elif status == 1:
+                print("Position update process successfully restarted, but no positions have been received yet")
                 self.statusBox.setPlainText("Position update process successfully restarted, but no positions have been received yet")
             elif status == -1:
+                print("Position update process is not running")
                 self.statusBox.setPlainText("Position update process is not running")
             elif status == -2:
+                print("Position update process stopped, but failed to restart")
                 self.statusBox.setPlainText("Position update process stopped, but failed to restart")
             else:
+                print("Unexpected status received from reset function: " + str(status))
                 self.statusBox.setPlainText("Unexpected status received from reset function: " + str(status))
         return
         
+
+    def stopTrackingStatus(self):
+        print("Stopping position update process")
+        self.statusBox.setPlainText("Stopping position update process")
+        if type(self.Balloon) is not type(None):
+            self._stop_updating()
+            self.Balloon.stop()
+            status = self.Balloon.test()
+            if status == 0:
+                print("Position update process still running and receiving after post-stop test")
+                self.statusBox.setPlainText("Position update process still running and receiving after post-stop test")
+            elif status == 1:
+                print("Position update process still running after post-stop test")
+                self.statusBox.setPlainText("Position update process still running after post-stop test")
+            elif status == -1 or status == -2:
+                print("Position update process stopped")
+                self.statusBox.setPlainText("Position update process stopped")
+            else:
+                print("Unexpected status received from reset function: " + str(status))
+                self.statusBox.setPlainText("Unexpected status received from reset function: " + str(status))
+        return
+    
 
     def assignModem(self):
         # this function checks if an modem has been selected
@@ -287,6 +324,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                                                         modem=str(self.Borealis_comboBox_modem.currentText()).split()[0])
             testStr = self.Balloon.print_info()
             self.statusBox.setPlainText(testStr)
+            self._start_updating()
             # self.Balloon.getTimeDiff()
         else:
             print("select a balloon ")
@@ -371,6 +409,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                                                                apikey=self.APRS_fi_lineEdit_APIKey.text())
                     testStr = self.Balloon.print_info()
                     self.statusBox.setPlainText(testStr)
+                    self._start_updating()
             else:
                 print("Select a balloon callsign from the list in APRS_Callsigns.csv")
                 self.statusBox.setPlainText("Please select a balloon callsign from those listed in APRS_Callsigns.csv")
@@ -387,6 +426,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                                                            callsign=self.APRS_IS_comboBox_Callsign.currentText())
                 testStr = self.Balloon.print_info()
                 self.statusBox.setPlainText(testStr)
+                self._start_updating()
             else:
                 print("Select a balloon callsign from the list in APRS_Callsigns.csv")
                 self.statusBox.setPlainText("Please select a balloon callsign from those listed in APRS_Callsigns.csv")
@@ -403,6 +443,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                                                            callsign=self.APRS_Radio_comboBox_Callsign.currentText())
                 testStr = self.Balloon.print_info()
                 self.statusBox.setPlainText(testStr)
+                self._start_updating()
             else:
                 print("Select a balloon callsign from the list in APRS_Callsigns.csv")
                 self.statusBox.setPlainText("Please select a balloon callsign from those listed in APRS_Callsigns.csv")
@@ -422,6 +463,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                                                                       baudrate=self.baud_rate)
                     testStr = self.Balloon.print_info()
                     self.statusBox.setPlainText(testStr)
+                    self._start_updating()
             else:
                 print("Select a balloon callsign from the list in APRS_Callsigns.csv")
                 self.statusBox.setPlainText("Please select a balloon callsign from those listed in APRS_Callsigns.csv")
@@ -450,6 +492,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                                                            apikey=self.APRS_fi_lineEdit_APIKey.text())
                 testStr = self.Balloon.print_info()
                 self.statusBox.setPlainText(testStr)
+                self._start_updating()
         else:
             print("Enter an APRS.fi API key")
             self.statusBox.setPlainText("Please enter an APRS.fi API key")
@@ -478,6 +521,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                                                                       baud_rate=self.baud_rate)
                     testStr = self.Balloon.print_info()
                     self.statusBox.setPlainText(testStr)
+                    self._start_updating()
             else:
                 print("Enter a valid baud rate for the connected radio")
                 self.statusBox.setPlainText("Enter a valid baud rate for the connected radio")
@@ -780,8 +824,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         # sets up the qt thread to start tracking, and starts the thread
         self.tracking = True
         self.statusBox.setPlainText("Tracking!")
-        self.trackThread = QThread()
-        self.worker = Worker()
+        '''self.trackThread = QThread()
+        self.worker = Worker_tracking()
 
         self.worker.moveToThread(self.trackThread)
 
@@ -789,13 +833,13 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.worker.finished.connect(self.trackThread.quit)  # pycharm has bug, this is correct
         self.worker.finished.connect(self.worker.deleteLater)  # https://youtrack.jetbrains.com/issue/PY-24183?_ga=2.240219907.1479555738.1625151876-2014881275.1622661488
-        self.trackThread.finished.connect(self.trackThread.deleteLater)
+        self.trackThread.finished.connect(self.trackThread.deleteLater)'''
 
         self.startButton.setEnabled(False)
         self.predictionStartButton.setEnabled(False)
         self.calibrateButton.setEnabled(False)
-
-        self.trackThread.start()
+        '''
+        self.trackThread.start()'''
 
 
     def callPredictTrack(self):
@@ -804,7 +848,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         print("In predictTrack call")
         self.tracking = True
         self.trackThread = QThread()
-        self.worker = Worker()
+        self.worker = Worker_tracking()
 
         self.worker.moveToThread(self.trackThread)
 
@@ -853,7 +897,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
     # Function to plot received coordinates on the position map and altitude graph
-    def _update_map_altitude(self, lon:float, lat:float, alt:float, latest_time:float):
+    def _update_map_altitude(self, latest_time:float, lon:float, lat:float, alt:float):
         # Record balloon locations and plot on map
         xpt,ypt = self.basemap(lon, lat)
         self.xpt.append(xpt)
@@ -868,8 +912,102 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.map_canvas.figure.canvas.draw()
 
 
+    # Function to update receivedUpdates tree widget
+    def _update_receivedUpdates_tree(self, update_time:str, time_diff:str, lat:str, long:str, alt:str, comment:str):
+        self.receivedUpdates_treeWidget.scrollToItem(QTreeWidgetItem(self.receivedUpdates_treeWidget, [update_time, time_diff, lat, long, alt, comment]))
 
-class Worker(QObject):
+
+    # Function to update local updates dict and run other GUI updates
+    def _receive_updates(self, updateData:dict):
+        self.latest_update = updateData
+        latest_tm = time.localtime(updateData['time'])
+        time_str = "{:02.0f}:{:02.0f}:{:02.0f}".format(latest_tm[3], latest_tm[4], latest_tm[5])
+        time_diff = self.Balloon.getTimeDiff()
+        
+        self._update_receivedUpdates_tree(time_str, "{:.0f}".format(time_diff), "{:.2f}".format(updateData['lat']), "{:.2f}".format(updateData['long']), "{:.1f}".format(updateData['alt']), str(updateData['comment']))
+        self._update_map_altitude(updateData['time'], updateData['long'], updateData['lat'], updateData['alt'])
+
+        if self.tracking:
+            # note that trackMath takes arguments as long, lat, altitude
+            Tracking_Calc = trackMath(self.GSLong, self.GSLat, self.GSAlt, 
+                                        updateData['long'], updateData['lat'], updateData['alt'])
+
+            distance = Tracking_Calc.distance()
+            newElevation = Tracking_Calc.elevation()
+            newAzimuth = Tracking_Calc.azimuth()
+
+            print(str(self.i) + " Distance " + str(distance) + " Azimuth: " + str(newAzimuth) + ", Elevation: " + str(newElevation))
+
+            self.displayCalculations(distance, newAzimuth, newElevation)
+
+            self.GSArduino.move_position(newAzimuth, newElevation)
+
+
+    # Start QThread for getting position updates
+    def _start_updating(self):
+        # sets up the qt thread to start updating, and starts the thread
+        self.updating = True
+        self.statusBox.setPlainText("Updating from tracking source")
+        self.updateThread = QThread()
+        self.updateWorker = Worker_updates()
+
+        self.updateWorker.moveToThread(self.updateThread)
+
+        self.updateThread.started.connect(self.updateWorker.receive_updates)
+
+        self.updateWorker.finished.connect(self.updateThread.quit)  # pycharm has bug, this is correct
+        self.updateWorker.finished.connect(self.updateWorker.deleteLater)  # https://youtrack.jetbrains.com/issue/PY-24183?_ga=2.240219907.1479555738.1625151876-2014881275.1622661488
+        self.updateThread.finished.connect(self.updateThread.deleteLater)
+
+        self.updateThread.start()
+
+
+    # Stop Qthread for getting position updates
+    def _stop_updating(self):
+        if self.updating:
+            self.updating = False
+        return
+
+
+
+class Worker_updates(QObject):
+    # worker class to receive updates without making the GUI hang
+    finished = pyqtSignal()
+
+    update_signal = pyqtSignal(dict)
+
+    i = 0
+
+    def receive_updates(self):
+        # checks for updated position every second
+        # if a new position has been found, append to updates queue in main window class
+        last_Balloon_Coor = {}
+
+        self.update_signal.connect(MainWindow._receive_updates)
+
+        while MainWindow.updating:
+            Balloon_Coor = MainWindow.Balloon.get_coor_alt()
+            if Balloon_Coor == last_Balloon_Coor:
+                time.sleep(1)
+                continue
+            
+            self.update_signal.emit({'count':self.i} | MainWindow.Balloon.get_latest_update())
+
+            self.i += 1
+            last_Balloon_Coor = Balloon_Coor
+
+            #============================
+
+
+        print("All done!")
+        print(str(self.i) + " location updates processed")
+        self.finished.emit()  # same pycharm bug as above
+        return
+    pass
+
+
+
+class Worker_tracking(QObject):
     # worker class to track without making the GUI hang
     finished = pyqtSignal()
 
@@ -889,7 +1027,7 @@ class Worker(QObject):
         self.coor_signal.connect(MainWindow._update_map_altitude)
 
         while MainWindow.tracking:
-            Balloon_Coor = MainWindow.Balloon.get_coor_alt()
+            Balloon_Coor = [MainWindow.latest_update["lat"], MainWindow.latest_update["long"], MainWindow.latest_update["alt"]]
             if Balloon_Coor == last_Balloon_Coor:
                 time.sleep(1)
                 continue
@@ -904,7 +1042,7 @@ class Worker(QObject):
             print(str(self.i) + " Distance " + str(distance) + " Azimuth: " + str(newAzimuth) + ", Elevation: " + str(newElevation))
 
             self.calcSignal.emit(distance, newAzimuth, newElevation)
-            self.coor_signal.emit(Balloon_Coor[1], Balloon_Coor[0], Balloon_Coor[2], MainWindow.Balloon.get_latest_timestamp())
+            self.coor_signal.emit(MainWindow.Balloon.get_latest_timestamp(), Balloon_Coor[1], Balloon_Coor[0], Balloon_Coor[2])
 
             MainWindow.GSArduino.move_position(newAzimuth, newElevation)
 

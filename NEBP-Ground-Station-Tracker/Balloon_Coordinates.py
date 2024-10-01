@@ -22,7 +22,6 @@ SOFTWARE.
 -------------------------------------------------------------------------------
 """
 import time
-from calendar import timegm
 import requests
 from requests.adapters import HTTPAdapter, Retry
 from urllib3.exceptions import MaxRetryError
@@ -32,6 +31,7 @@ import aprs
 import multiprocessing
 import subprocess
 import atexit
+from ctypes import c_wchar
 
 
 # Base class for receiving balloon coordinates
@@ -41,6 +41,7 @@ class Balloon_Coordinates:
         self.latest_time = multiprocessing.Value(typecode_or_type='d')
         self.last_time = multiprocessing.Value(typecode_or_type='d')
         self.coor_alt = multiprocessing.Array(typecode_or_type='d', size_or_initializer=3)
+        self.latest_comment = multiprocessing.Array(c_wchar, 99)
 
         self.service_type = service_type
 
@@ -197,16 +198,54 @@ class Balloon_Coordinates:
 
     # finds the difference in time between the latest ping and the one before
     def getTimeDiff(self):
-        print(self.last_time.value)
+        # print(self.last_time.value)
 
-        print(self.latest_time.value - self.last_time.value)
+        # print(self.latest_time.value - self.last_time.value)
         return self.latest_time.value - self.last_time.value
     
 
     # Return last received Unix timestamp
     def get_latest_timestamp(self):
         return self.latest_time.value
+    
 
+    # Return info dict from last update
+    def get_latest_update(self) -> dict:
+        temp = self.get_coor_alt()
+
+        # Return latest received info
+        try:
+            return {'time':self.get_latest_timestamp(),
+                    'lat':temp[0],
+                    'long':temp[1],
+                    'alt':temp[2],
+                    'comment':self.latest_comment[:]}
+        except Exception as e:
+            print(e)
+            # Catch if the comment does something and get rid of it
+            self.latest_comment[:] = len(self.latest_comment[:]) * ['\x00']
+            return {'time':self.get_latest_timestamp(),
+                    'lat':temp[0],
+                    'long':temp[1],
+                    'alt':temp[2],
+                    'comment':""}
+    
+
+    # Helper function for recording comment strings
+    def _record_comment(self, comment:str):
+        # Make sure comment is a string
+        comment = str(comment)
+        # Check comment length
+        comment_length = len(comment)
+        max_comment_length = len(self.latest_comment[:])
+        if comment_length >= max_comment_length:
+            # Cutoff comment to fit in latest_comment array
+            self.latest_comment[:] = list(comment)[0:max_comment_length]
+        else:
+            # Record comment to latest_comment array
+            self.latest_comment[0:comment_length] = list(comment)
+            # Clear unused array elements
+            self.latest_comment[comment_length:] = (max_comment_length - comment_length) * ['\x00']
 
     pass
 
@@ -231,7 +270,7 @@ class Balloon_Coordinates_Test(Balloon_Coordinates):
                 coor_alt_CSV = csv.reader(file)
 
                 for line in coor_alt_CSV:
-                    self.coor_alt_list.append([float(line[3]), float(line[4]), float(line[5]), line[2]])
+                    self.coor_alt_list.append([float(line[3]), float(line[4]), float(line[5]), line[2], (",".join(line[6:]))])
 
         except IOError:
             print("Could not read file: ", dataPath.name)
@@ -261,6 +300,10 @@ class Balloon_Coordinates_Test(Balloon_Coordinates):
                     self.latest_time.value = time.strptime(coor_alt[3], "%Y-%m-%d_%H-%M-%S_%z")
                 else: # Otherwise, should be in Unix time
                     self.latest_time.value = float(coor_alt[3])
+
+                # Record comment
+                self._record_comment(str(coor_alt[4]))
+                
                 # Sleep for the given update period
                 time.sleep(self.period)
             
@@ -354,12 +397,17 @@ class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
                 if frame.info.timestamp != None:
                     self.last_time.value = self.latest_time.value
                     self.latest_time.value = float(frame.info.timestamp)
+                # Save received comment
+                if frame.info.comment != None:
+                    self._record_comment(str(frame.info.comment))
+                else:
+                    self._record_comment("")
 
                 # Increment position update counter
                 with self.coor_alt_counter.get_lock():
                     self.coor_alt_counter.value += 1
                 # Log received position
-                self._log_coor_alt(comment=self.callsign)
+                self._log_coor_alt(comment=(self.callsign + "," + str(self.latest_comment[:])))
 
                 print(self.get_coor_alt())
 
@@ -402,12 +450,17 @@ class Balloon_Coordinates_APRS_SerialTNC(Balloon_Coordinates_APRS):
                 if frame.info.timestamp != None:
                     self.last_time.value = self.latest_time.value
                     self.latest_time.value = float(frame.info.timestamp)
+                # Save received comment
+                if frame.info.comment != None:
+                    self._record_comment(str(frame.info.comment))
+                else:
+                    self._record_comment("")
 
                 # Increment position update counter
                 with self.coor_alt_counter.get_lock():
                     self.coor_alt_counter.value += 1
                 # Log received position
-                self._log_coor_alt(comment=self.callsign)
+                self._log_coor_alt(comment=(self.callsign + "," + str(self.latest_comment[:])))
 
                 print(self.get_coor_alt())
 
@@ -450,12 +503,17 @@ class Balloon_Coordinates_APRS_IS(Balloon_Coordinates_APRS):
             if frame.info.timestamp != None:
                 self.last_time.value = self.latest_time.value
                 self.latest_time.value = float(frame.info.timestamp)
+            # Save received comment
+            if frame.info.comment != None:
+                self._record_comment(str(frame.info.comment))
+            else:
+                self._record_comment("")
 
             # Increment position update counter
             with self.coor_alt_counter.get_lock():
                 self.coor_alt_counter.value += 1
             # Log received position
-            self._log_coor_alt(comment=self.callsign)
+            self._log_coor_alt(comment=(self.callsign + "," + str(self.latest_comment[:])))
 
             print(self.get_coor_alt())
 
@@ -565,12 +623,14 @@ class Balloon_Coordinates_APRS_fi(Balloon_Coordinates_APRS):
                             float(reqData["entries"][0]["altitude"])]
             # Record the last time this position was reported
             self.latest_time.value = int(reqData["entries"][0]["lasttime"])
+            # Save received comment
+            self._record_comment(str(reqData["entries"][0]["comment"]))
 
             # Increment position update counter
             with self.coor_alt_counter.get_lock():
                 self.coor_alt_counter.value += 1
             # Log received position
-            self._log_coor_alt(comment=self.callsign)
+            self._log_coor_alt(comment=(self.callsign + "," + str(self.latest_comment[:])))
 
             print(self.get_coor_alt())
             return
@@ -686,18 +746,20 @@ class Balloon_Coordinates_Borealis(Balloon_Coordinates):
                     self.coor_alt[2] = float(reqData["result"][-1]["altitude"])
                     # Record the last time this position was reported
                     self.latest_time.value = float(reqData["result"][-1]["datetime"])
+                    # Save received comment
+                    comment = str(reqData["result"][-1]["uid"]) + "," \
+                            + str(reqData["result"][-1]["vertical_velocity"]) + "," \
+                            + str(reqData["result"][-1]["ground_speed"]) + "," \
+                            + str(reqData["result"][-1]["satellites"]) + "," \
+                            + str(reqData["result"][-1]["input_pins"]) + "," \
+                            + str(reqData["result"][-1]["output_pins"])
+                    self._record_comment(comment)
 
                     # Increment position update counter
                     with self.coor_alt_counter.get_lock():
                         self.coor_alt_counter.value += 1
                     # Log received position
-                    self._log_coor_alt(comment=(self.modem + ","
-                                               + str(reqData["result"][-1]["uid"]) + ","
-                                               + str(reqData["result"][-1]["vertical_velocity"]) + ","
-                                               + str(reqData["result"][-1]["ground_speed"]) + ","
-                                               + str(reqData["result"][-1]["satellites"]) + ","
-                                               + str(reqData["result"][-1]["input_pins"]) + ","
-                                               + str(reqData["result"][-1]["output_pins"])))
+                    self._log_coor_alt(comment=(self.modem + "," + str(self.latest_comment[:])))
 
                     print(self.get_coor_alt())
                     print(self.latest_time.value)
