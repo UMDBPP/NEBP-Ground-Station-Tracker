@@ -176,7 +176,7 @@ class Balloon_Coordinates:
         dataPath = Path(__file__).parent / ("../logs/" + time.strftime("%Y-%m-%d_%H-%M-%S_%z", time.localtime(self.service_start_time.value)) + "_position_log.csv")
         try:
             with dataPath.open('a') as file:
-                logCSV = csv.writer(file)
+                logCSV = csv.writer(file, delimiter=",", escapechar='\\')
                 logCSV.writerow(logData)
         except IOError:
             print("Could not open file: ", dataPath.name)

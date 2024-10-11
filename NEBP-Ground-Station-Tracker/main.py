@@ -932,11 +932,11 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             Tracking_Calc = trackMath(self.GSLong, self.GSLat, self.GSAlt, 
                                         updateData['long'], updateData['lat'], updateData['alt'])
 
-            distance = Tracking_Calc.distance()
+            distance = Tracking_Calc.distance
             newElevation = Tracking_Calc.elevation()
             newAzimuth = Tracking_Calc.azimuth()
 
-            print(str(self.i) + " Distance " + str(distance) + " Azimuth: " + str(newAzimuth) + ", Elevation: " + str(newElevation))
+            print("Distance " + str(distance) + " Azimuth: " + str(newAzimuth) + ", Elevation: " + str(newElevation))
 
             self.displayCalculations(distance, newAzimuth, newElevation)
 
