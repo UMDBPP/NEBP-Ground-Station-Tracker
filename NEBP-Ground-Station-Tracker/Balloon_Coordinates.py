@@ -365,8 +365,10 @@ class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
     
 
     def start(self):
-        # ***** Need to make this use relative paths and add direwolf as a submodule *****
-        self.sdrProc = subprocess.Popen("/usr/bin/rtl_fm -f 144.39M -o 4 - | /srv/NEBP-Ground_Station/NEBP-Ground-Station-Tracker/external/direwolf/build/src/direwolf -c /srv/NEBP-Ground_Station/NEBP-Ground-Station-Tracker/external/direwolf.conf -n 1 -r 24000 -b 16 -",
+        rtl_fm_path = Path("/usr/bin/rtl_fm")
+        direwolf_path = Path(__file__).parent.parent / "external/direwolf/build/src/direwolf"
+        direwolf_conf_path = Path(__file__).parent.parent / "external/direwolf.conf"
+        self.sdrProc = subprocess.Popen(str(rtl_fm_path) + " -f 144.39M -o 4 - | " + str(direwolf_path) + " -c " + str(direwolf_conf_path) + " -n 1 -r 24000 -b 16 -",
                                         shell=True,
                                         stdin=subprocess.PIPE,
                                         stdout=subprocess.DEVNULL)

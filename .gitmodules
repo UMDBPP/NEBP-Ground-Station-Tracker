@@ -1,0 +1,3 @@
+[submodule "external/direwolf"]
+	path = external/direwolf
+	url = https://github.com/wb2osz/direwolf
