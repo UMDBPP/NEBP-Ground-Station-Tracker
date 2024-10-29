@@ -365,6 +365,7 @@ class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
     
 
     def start(self):
+        # ***** Need to make this use relative paths and add direwolf as a submodule *****
         self.sdrProc = subprocess.Popen("/usr/bin/rtl_fm -f 144.39M -o 4 - | /srv/NEBP-Ground_Station/NEBP-Ground-Station-Tracker/external/direwolf/build/src/direwolf -c /srv/NEBP-Ground_Station/NEBP-Ground-Station-Tracker/external/direwolf.conf -n 1 -r 24000 -b 16 -",
                                         shell=True,
                                         stdin=subprocess.PIPE,
@@ -394,9 +395,9 @@ class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
                 self.coor_alt[1] = float(frame.info.long)
                 if frame.info.altitude_ft != None:
                     self.coor_alt[2] = float(frame.info.altitude_ft)*0.3048
-                if frame.info.timestamp != None:
+                if frame.info.timestamp != None: # Should be datetime
                     self.last_time.value = self.latest_time.value
-                    self.latest_time.value = float(frame.info.timestamp)
+                    self.latest_time.value = frame.info.timestamp.timestamp()
                 # Save received comment
                 if frame.info.comment != None:
                     self._record_comment(str(frame.info.comment))
@@ -447,9 +448,9 @@ class Balloon_Coordinates_APRS_SerialTNC(Balloon_Coordinates_APRS):
                 self.coor_alt[1] = float(frame.info.long)
                 if frame.info.altitude_ft != None:
                     self.coor_alt[2] = float(frame.info.altitude_ft)*0.3048
-                if frame.info.timestamp != None:
+                if frame.info.timestamp != None: # Should be datetime
                     self.last_time.value = self.latest_time.value
-                    self.latest_time.value = float(frame.info.timestamp)
+                    self.latest_time.value = frame.info.timestamp.timestamp()
                 # Save received comment
                 if frame.info.comment != None:
                     self._record_comment(str(frame.info.comment))
@@ -500,9 +501,9 @@ class Balloon_Coordinates_APRS_IS(Balloon_Coordinates_APRS):
             self.coor_alt[1] = float(frame.info.long)
             if frame.info.altitude_ft != None:
                 self.coor_alt[2] = float(frame.info.altitude_ft)*0.3048
-            if frame.info.timestamp != None:
+            if frame.info.timestamp != None: # Should be datetime
                 self.last_time.value = self.latest_time.value
-                self.latest_time.value = float(frame.info.timestamp)
+                self.latest_time.value = frame.info.timestamp.timestamp()
             # Save received comment
             if frame.info.comment != None:
                 self._record_comment(str(frame.info.comment))
