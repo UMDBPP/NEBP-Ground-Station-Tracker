@@ -981,20 +981,20 @@ class Worker_updates(QObject):
     def receive_updates(self):
         # checks for updated position every second
         # if a new position has been found, append to updates queue in main window class
-        last_Balloon_Coor = {}
+        last_Balloon_Update = {}
 
         self.update_signal.connect(MainWindow._receive_updates)
 
         while MainWindow.updating:
-            Balloon_Coor = MainWindow.Balloon.get_coor_alt()
-            if Balloon_Coor == last_Balloon_Coor:
+            Balloon_Update = MainWindow.Balloon.get_latest_update()
+            if last_Balloon_Update == Balloon_Update:
                 time.sleep(1)
                 continue
             
-            self.update_signal.emit({'count':self.i} | MainWindow.Balloon.get_latest_update())
+            self.update_signal.emit({'count':self.i} | Balloon_Update)
 
             self.i += 1
-            last_Balloon_Coor = Balloon_Coor
+            last_Balloon_Update = Balloon_Update
 
             #============================
 

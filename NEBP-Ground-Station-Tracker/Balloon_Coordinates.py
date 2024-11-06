@@ -368,23 +368,45 @@ class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
         rtl_fm_path = Path("/usr/bin/rtl_fm")
         direwolf_path = Path(__file__).parent.parent / "external/direwolf/build/src/direwolf"
         direwolf_conf_path = Path(__file__).parent.parent / "external/direwolf.conf"
-        self.sdrProc = subprocess.Popen(str(rtl_fm_path) + " -f 144.39M -o 4 - | " + str(direwolf_path) + " -c " + str(direwolf_conf_path) + " -n 1 -r 24000 -b 16 -",
-                                        shell=True,
-                                        stdin=subprocess.PIPE,
-                                        stdout=subprocess.DEVNULL)
+        # self.sdrProc = subprocess.Popen("exec " + str(rtl_fm_path) + " -f 144.39M -o 4 - | " + str(direwolf_path) + " -c " + str(direwolf_conf_path) + " -n 1 -r 24000 -b 16 -",
+        #                                 shell=True,
+        #                                 stdin=subprocess.PIPE,
+        #                                 stdout=subprocess.DEVNULL)
+        self.sdrProc = []
+        self.sdrProc[0] = subprocess.Popen(str(rtl_fm_path) + " -f 144.39M -o 4 -",
+                                           stdout=subprocess.PIPE)
+        time.sleep(0.1)
+        self.sdrProc[1] = subprocess.Popen(str(direwolf_path) + " -c " + str(direwolf_conf_path) + " -n 1 -r 24000 -b 16 -",
+                                           stdin=self.sdrProc[0].stdout)
         time.sleep(0.1)
         super().start()
 
 
     def stop(self):
         super().stop()
-        self.sdrProc.terminate()
-        self.sdrProc.wait(10)
-        if self.sdrProc.poll() is None:
-            print("Subprocess did not terminate in 10 seconds, sending kill signal")
-            self.sdrProc.kill()
-            self.sdrProc.wait()
+        self.sdrProc[1].terminate()
+        self.sdrProc[1].wait(10)
+        if self.sdrProc[1].poll() is None:
+            print("Direwolf subprocess did not terminate in 10 seconds, sending kill signal")
+            self.sdrProc[1].kill()
+            self.sdrProc[1].wait()
         time.sleep(0.1)
+        
+        self.sdrProc[0].terminate()
+        self.sdrProc[0].wait(10)
+        if self.sdrProc[0].poll() is None:
+            print("RTL_FM Subprocess did not terminate in 10 seconds, sending kill signal")
+            self.sdrProc[0].kill()
+            self.sdrProc[0].wait()
+        time.sleep(0.1)
+
+        # self.sdrProc.terminate()
+        # self.sdrProc.wait(10)
+        # if self.sdrProc.poll() is None:
+        #     print("Subprocess did not terminate in 10 seconds, sending kill signal")
+        #     self.sdrProc.kill()
+        #     self.sdrProc.wait()
+        # time.sleep(0.1)
 
 
     def _update_coor_alt(self):
@@ -402,7 +424,10 @@ class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
                     self.latest_time.value = frame.info.timestamp.timestamp()
                 # Save received comment
                 if frame.info.comment != None:
-                    self._record_comment(str(frame.info.comment))
+                    if type(frame.info.comment) == type(b''):
+                        self._record_comment(frame.info.comment.decode('UTF-8'))
+                    else:
+                        self._record_comment(str(frame.info.comment))
                 else:
                     self._record_comment("")
 
