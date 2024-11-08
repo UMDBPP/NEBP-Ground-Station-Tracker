@@ -420,9 +420,9 @@ class Balloon_Coordinates_APRS_SDR(Balloon_Coordinates_APRS):
                 # Save received comment
                 if frame.info.comment != None:
                     if type(frame.info.comment) == type(b''):
-                        self._record_comment(frame.source.callsign.decode('UTF-8') + "-" + str(frame.source.ssid) + " " + frame.info.comment.decode('UTF-8'))
+                        self._record_comment(frame.source.callsign.decode('UTF-8') + "-" + str(frame.source.ssid) + ": " + frame.info.comment.decode('UTF-8'))
                     else:
-                        self._record_comment(str(frame.source.callsign) + "-" + str(frame.source.ssid) + " " + str(frame.info.comment))
+                        self._record_comment(str(frame.source.callsign) + "-" + str(frame.source.ssid) + ": " + str(frame.info.comment))
                 else:
                     self._record_comment("")
 
@@ -475,7 +475,10 @@ class Balloon_Coordinates_APRS_SerialTNC(Balloon_Coordinates_APRS):
                     self.latest_time.value = frame.info.timestamp.timestamp()
                 # Save received comment
                 if frame.info.comment != None:
-                    self._record_comment(str(frame.info.comment))
+                    if type(frame.info.comment) == type(b''):
+                        self._record_comment(frame.source.callsign.decode('UTF-8') + "-" + str(frame.source.ssid) + ": " + frame.info.comment.decode('UTF-8'))
+                    else:
+                        self._record_comment(str(frame.source.callsign) + "-" + str(frame.source.ssid) + ": " + str(frame.info.comment))
                 else:
                     self._record_comment("")
 
@@ -528,7 +531,10 @@ class Balloon_Coordinates_APRS_IS(Balloon_Coordinates_APRS):
                 self.latest_time.value = frame.info.timestamp.timestamp()
             # Save received comment
             if frame.info.comment != None:
-                self._record_comment(str(frame.info.comment))
+                if type(frame.info.comment) == type(b''):
+                    self._record_comment(frame.source.callsign.decode('UTF-8') + "-" + str(frame.source.ssid) + ": " + frame.info.comment.decode('UTF-8'))
+                else:
+                    self._record_comment(str(frame.source.callsign) + "-" + str(frame.source.ssid) + ": " + str(frame.info.comment))
             else:
                 self._record_comment("")
 
@@ -647,7 +653,7 @@ class Balloon_Coordinates_APRS_fi(Balloon_Coordinates_APRS):
             # Record the last time this position was reported
             self.latest_time.value = int(reqData["entries"][0]["lasttime"])
             # Save received comment
-            self._record_comment(str(reqData["entries"][0]["comment"]))
+            self._record_comment(str(reqData["entries"][0]["name"]) + ": " + str(reqData["entries"][0]["comment"]))
 
             # Increment position update counter
             with self.coor_alt_counter.get_lock():
