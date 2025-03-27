@@ -1,16 +1,16 @@
-# Ground-Station-Tracker
+# NEBP-Ground-Station-Tracker
 Code for BPP's ground station tracking system for high-altitude balloon flights. Originally created during the Montana Space Grant Consortium's BOREALIS program in the summer of 2021.
 
 ## Initial Set-Up and Usage
-    > [!Caution]
-    > These steps haven't actually been tested. Follow at your own risk
+> [!CAUTION]
+> These steps haven't actually been tested. Follow at your own risk
 
-    > [!WARNING]
-    > The below steps are intended for use on Debian-derived Linux distributions, such as Ubuntu. They may or may not work on systems running other operating systems.
+> [!WARNING]  
+> The below steps are intended for use on Debian-derived Linux distributions, such as Ubuntu. They may or may not work on systems running other operating systems.
 
  1. Clone this repository
  2. Initialize submodules using `git submodule update --init`
-    - The [Direwolf submodule](./external/direwolf/README.md) needs to be built by installing the needed build tools and running the following from this repo's directory:
+    - The Direwolf submodule needs to be built by installing the needed build tools and running the following from this repo's directory:
         ```
         cd external/direwolf
         mkdir build && cd build
