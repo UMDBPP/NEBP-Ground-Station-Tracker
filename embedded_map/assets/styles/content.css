@@ -1,0 +1,69 @@
+@charset "UTF-8";
+@import url("https://fonts.googleapis.com/css?family=Source+Sans+Pro:200,200i,300,300i,400,400i,600,600i,700,700i,900,900i");
+
+html, body {
+    font-family: "Roboto", sans-serif;
+    font-weight: 100;
+    height:      100%;
+    margin:      0;
+}
+
+body {
+    display:        flex;
+    flex-direction: column;
+}
+
+.title {
+    padding-top:         150px;
+    padding-bottom:      200px;
+    text-align:          center;
+    vertical-align:      center;
+    letter-spacing:      0.3ch;
+    color:               white;
+    background-color:    #ccc;
+    background-image:    url(../images/flights/sun.jpg);
+    background-repeat:   no-repeat;
+    background-position: center;
+    background-size:     cover;
+}
+
+.text {
+    flex:    2;
+    padding: 0 1ch;
+}
+
+img {
+    max-width: 100%;
+}
+
+.image_list {
+    display:        flex;
+    flex-direction: column;
+}
+
+.image_list li {
+    display:        flex;
+    flex-wrap:      wrap;
+    padding-bottom: 1ch;
+}
+
+.image_list p {
+    line-height:  1.1;
+    padding-left: 2ch;
+}
+
+.image_list strong {
+    font-size:   16pt;
+    font-weight: bolder;
+}
+
+.image_list b {
+    font-weight: bold;
+    color:       #e21833;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="date"]::-webkit-inner-spin-button {
+    margin:             0;
+    -webkit-appearance: none;
+}

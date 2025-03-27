@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "esri-leaflet": "^3.0.14",
+    "esri-leaflet-vector": "^4.2.8",
+    "jquery": "^3.7.1",
+    "leaflet": "^1.9.4",
+    "leaflet-ajax": "^2.1.0",
+    "leaflet-groupedlayercontrol": "github:ismyrnow/leaflet-groupedlayercontrol#pull/57",
+    "leaflet-providers": "^2.0.0",
+    "leaflet.offline": "^3.1.0"
+  }
+}

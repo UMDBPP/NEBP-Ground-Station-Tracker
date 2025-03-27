@@ -1,0 +1,44 @@
+html, body {
+    height : 100%;
+    margin : 0;
+}
+
+body {
+    display        : flex;
+    flex-direction : column;
+}
+
+#map {
+    flex-grow : 1;
+}
+
+.controls {
+    display         : flex;
+    align-items     : stretch;
+    flex            : 1 2;
+    justify-content : space-around;
+}
+
+.box {
+    border : solid;
+}
+
+.labeled_input {
+    display         : flex;
+    justify-content : space-between;
+}
+
+.labeled_input label {
+    padding-left : 0.1em;
+}
+
+@media screen and (max-width : 990px) {
+    .controls {
+        align-items    : stretch;
+        flex-direction : column;
+    }
+
+    button {
+        padding : 0.3em;
+    }
+}

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+
+    <!-- <base href="https://bpp.umd.edu/~jsnyde25/"> -->
+    <link href="assets/styles/content.css" rel="stylesheet">
+    <!-- <link href="assets/images/favicon.png" rel="shortcut icon" type="image/png"> -->
+    <!-- <title>UMDBPP - Flights</title> -->
+
+    <!-- <link crossorigin="" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+          integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" rel="stylesheet"/>
+    <script crossorigin=""
+            integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+    <script crossorigin="anonymous" integrity="sha384-sKs8ZrrxyJoElcPVznZwGpUTTXvkMYfHYxdIFzO8Hd0TA6emONMj8BwnsFf+6cZ/"
+            src="https://unpkg.com/leaflet-ajax@2.1.0/dist/leaflet.ajax.min.js"></script>
+    <script crossorigin="anonymous" integrity="sha384-MBqvFhoifV/e9S1Ca7DFfXtEHZAYgSiDw5ek8a6BcgVfQdctO9SKp6ueQGC3PSiO"
+            src="https://unpkg.com/leaflet-providers@1.8.0/leaflet-providers.js"></script>
+
+    <script crossorigin=""
+            integrity="sha512-ciMHuVIB6ijbjTyEdmy1lfLtBwt0tEHZGhKVXDzW7v7hXOe+Fo3UA1zfydjCLZ0/vLacHkwSARXB5DmtNaoL/g==" src="https://unpkg.com/esri-leaflet@3.0.7/dist/esri-leaflet.js"></script>
+    <script crossorigin=""
+            integrity="sha512-SnA/TobYvMdLwGPv48bsO+9ROk7kqKu/tI9TelKQsDe+KZL0TUUWml56TZIMGcpHcVctpaU6Mz4bvboUQDuU3w==" src="https://unpkg.com/esri-leaflet-vector@3.1.2/dist/esri-leaflet-vector.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script> -->
+    
+    <!-- <link href="../external/leaflet-groupedlayercontrol/dist/leaflet.groupedlayercontrol.min.css" rel="stylesheet"/> -->
+    <!-- <script src="../external/leaflet-groupedlayercontrol/dist/leaflet.groupedlayercontrol.min.js"></script> -->
+    <!-- <script src="predicts/BalloonPredictionMap/assets/scripts/tokml/tokml.js"></script> -->
+    <!-- <script src="flights/assets/scripts/togeojson/togeojson.js"></script> -->
+    <!-- <script src="https://unpkg.com/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js" integrity="sha512-YHE3OK7LqYxfMLrKjW1FoGaFfgT5iAMunNlRz3lAPez5QPQOhR8zWtmAkfdGhsalStOGeuECyVB+kq+kA9LaOA==" crossorigin="anonymous"></script> -->
+
+    <link href="node_modules/leaflet/dist/leaflet.css" rel="stylesheet">
+    <script src="node_modules/leaflet/dist/leaflet.js"></script>
+    <script src="node_modules/leaflet-ajax/dist/leaflet.ajax.min.js"></script>
+    <script src="node_modules/leaflet-providers/leaflet-providers.js"></script>
+    <script src="node_modules/esri-leaflet/dist/esri-leaflet.js"></script>
+    <script src="node_modules/esri-leaflet-vector/dist/esri-leaflet-vector.js"></script>
+    <script src="node_modules/jquery/dist/jquery.min.js"></script>
+
+    <link href="node_modules/leaflet-groupedlayercontrol/dist/leaflet.groupedlayercontrol.min.css" rel="stylesheet">
+    <script src="node_modules/leaflet-groupedlayercontrol/dist/leaflet.groupedlayercontrol.min.js"></script>
+
+    <link href="assets/styles/map.css" rel="stylesheet">
+</head>
+<body>
+    <!-- <section style="display: flex; justify-content: space-between;">
+        <div class="controls">
+            <button id="fetch_button" onclick="updateFlightLayers()" style="font-weight: bold;">
+                Fetch Flights
+            </button>
+        </div>
+    </section> -->
+    <section id="map">
+        <script src="assets/scripts/functions.js"></script>
+        <script src="assets/scripts/layers.js"></script>
+        <script src="assets/scripts/track_flight.js"></script>
+        <!-- <script async src="assets/scripts/flights.js"></script> -->
+        <script>
+            MAP.setView([39.4, -77.4], 10);
+            MAP.addLayer(CONTROLLED_AIRSPACE_LAYER);
+        </script>
+        <!-- <script async type="text/javascript">
+            window.onload = function () {
+                updateFlightLayers({resize: true});
+            };
+        </script> -->
+    </section>
+    <!-- <section>
+        <div class="controls">
+            <button id="reset_zoom" onclick="resizeToOverlayLayers()">
+                Zoom To Flights (broken)
+            </button>
+            <a class="box" href="#" onClick="document.location.href=downloadFlightsKML();">
+                Download Flights
+            </a>
+            <a class="box" href="#"
+            onClick="document.location.href=downloadURI('./assets/data/controlled_airspace.kmz', 'CONTROLLED_AIRSPACE_LAYER.kmz');">
+                Download Airspace
+            </a>
+        </div>
+    </section> -->
+</body>
+<!-- TODO figure out how to add header on top of map container -->
+<!-- <script async src="assets/scripts/add_header.js"></script> -->
+</html>

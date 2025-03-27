@@ -25,8 +25,9 @@ https://pypi.org/project/PyQt5/
 """
 
 from PyQt5 import QtWidgets
-from PyQt5.QtCore import QThread, QObject, pyqtSignal, Qt
+from PyQt5.QtCore import QThread, QObject, pyqtSignal, Qt, QUrl
 from PyQt5.QtWidgets import QCompleter, QApplication, QTreeWidgetItem
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
 from Ground_Station_GUI import Ui_MainWindow
 import sys
 from Balloon_Coordinates import Balloon_Coordinates_Borealis, Balloon_Coordinates_APRS_fi, Balloon_Coordinates_APRS_IS, Balloon_Coordinates_APRS_SDR, Balloon_Coordinates_APRS_SerialTNC, Balloon_Coordinates_Test
@@ -48,9 +49,18 @@ from matplotlib.backends.backend_qtagg import FigureCanvas
 #     NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 
-from mpl_toolkits.basemap import Basemap
 from matplotlib.dates import DateFormatter
+from pathlib import Path
 # ======================================
+# Better to use a proper HTTP server with actual security, but this keeps things self-contained and is trivial to set up and run
+import http.server
+import socketserver
+
+import atexit
+
+import faulthandler
+
+faulthandler.enable(all_threads=True)
 
 
 class Window(QtWidgets.QMainWindow, Ui_MainWindow):
@@ -149,16 +159,71 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.predictingTrack = False
 
-        # Create figure canvas for map and altitude graph
-        self.map_canvas = FigureCanvas(Figure(layout="constrained"))
-        # self.Map_gridLayout.addWidget(NavigationToolbar(map_canvas, self))
+        self.serve_http = False
+        self.http_port = 8000
+        self.map_view = None
+        self.map_view_loaded = False
 
-        # Remove temporary widget and replace with the map widget
-        self.map_canvas.setSizePolicy(self.tmp_widget.sizePolicy())
-        self.directControls_grid.removeWidget(self.tmp_widget)
-        self.directControls_grid.addWidget(self.map_canvas, 12, 2, 1, 2)
+        # Set the HTTP server to start and initialize the map the first time the Location/Orientation tab is opened
+        self.tabWidget.currentChanged.connect(lambda index: self._start_http_server() or self._initialize_map() or self.tabWidget.currentChanged.disconnect() if index == 2 else None)
 
-        self._initialize_map()
+        self._initialize_plot()
+
+        atexit.register(self.cleanup)
+
+
+    def cleanup(self):
+        # Stop embedded map's HTTP server
+        self._stop_http_server()
+        if self.httpServerThread and self.httpServerThread.isRunning():
+            print("Waiting for HTTP server to stop")
+            # Give the thread 5 seconds to stop itself
+            if not self.httpServerThread.wait(5000) and self.httpServerThread.isRunning():
+                # If it hasn't stopped in 5 seconds, try manually quiting the thread
+                print("HTTP server hasn't stopped. Manually sending quit command...")
+                self.httpServerThread.quit()
+                if not self.httpServerThread.wait(5000) and self.httpServerThread.isRunning():
+                    # If it hasn't stopped in 5 seconds, terminate the thread
+                    print("HTTP server hasn't stopped. Terminating...")
+                    self.httpServerThread.terminate()
+                    # Give it another 5 seconds to terminate
+                    if not self.httpServerThread.wait(5000) and self.httpServerThread.isRunning():
+                        print("Error stopping HTTP server. HTTP server still running at program exit")
+        
+        # Stop tracking thread
+        self.stopTracking()
+        if self.trackThread and self.trackThread.isRunning():
+            print("Waiting for tracking thread to stop")
+            # Give the thread 5 seconds to stop itself
+            if not self.trackThread.wait(5000) and self.trackThread.isRunning():
+                # If it hasn't stopped in 5 seconds, try manually quiting the thread
+                print("Tracking thread hasn't stopped. Manually sending quit command...")
+                self.trackThread.quit()
+                if not self.trackThread.wait(5000) and self.trackThread.isRunning():
+                    # If it hasn't stopped in 5 seconds, terminate the thread
+                    print("Tracking thread hasn't stopped. Terminating...")
+                    self.trackThread.terminate()
+                    # Give it another 5 seconds to terminate
+                    if not self.trackThread.wait(5000) and self.trackThread.isRunning():
+                        print("Error stopping tracking thread. Tracking thread still running at program exit")
+        
+        # Stop updates thread
+        self._stop_updating()
+        if self.updateThread and self.updateThread.isRunning():
+            print("Waiting for position update thread to stop")
+            # Give the thread 5 seconds to stop itself
+            if not self.updateThread.wait(5000) and self.updateThread.isRunning():
+                # If it hasn't stopped in 5 seconds, try manually quiting the thread
+                print("Position update thread hasn't stopped. Manually sending quit command...")
+                self.updateThread.quit()
+                if not self.updateThread.wait(5000) and self.updateThread.isRunning():
+                    # If it hasn't stopped in 5 seconds, terminate the thread
+                    print("Position update thread hasn't stopped. Terminating...")
+                    self.updateThread.terminate()
+                    # Give it another 5 seconds to terminate
+                    if not self.updateThread.wait(5000) and self.updateThread.isRunning():
+                        print("Error stopping position update thread. Position update thread still running at program exit")
+        return
 
 
     # Debug test source replaying logged balloon positions
@@ -168,36 +233,50 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.statusBox.setPlainText(testStr)
         self._start_updating()
         return
+    
+
+    def _map_onLoadStarted(self):
+        self.map_view_loaded = False
+
+
+    def _map_onLoadFinished(self, ok):
+        if ok:
+            self.map_view_loaded = True
 
 
     # Initialize position map and altitude graph
     def _initialize_map(self, gs_lon:float=-77.5, gs_lat:float=39.5):
-        # Reset figure
-        self.map_canvas.figure.clear()
-        # Create new subplots and get axes
-        self.map_ax, self.altitude_ax = self.map_canvas.figure.subplots(2, 1, height_ratios=[2, 1])
+        # If the map_view hasn't been created yet, make it
+        if not self.map_view:
+            # Create web view for Leaflet map
+            self.map_view = QWebEngineView()
+            self.map_view.settings().setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
+            self.visualization_map_grid.addWidget(self.map_view)
+            self.map_view.setUrl(QUrl("http://127.0.0.1:" + str(self.http_port)))
+
+            # self.map_view_dev = QWebEngineView()
+            # self.visualization_map_grid.addWidget(self.map_view_dev)
+            # self.map_view.page().setDevToolsPage(self.map_view_dev.page())
+
+            self.map_view.loadStarted.connect(self._map_onLoadStarted)
+            self.map_view.loadFinished.connect(self._map_onLoadFinished)
         
-        # Create map centered on ground station
-        self.basemap = Basemap(width=400000,height=200000,\
-                   resolution='i',projection='cass',lon_0=gs_lon,lat_0=gs_lat, ax=self.map_ax)
-        # Draw map features
-        self.basemap.drawcoastlines()
-        self.basemap.fillcontinents(color='green',lake_color='aqua')
-        self.basemap.drawrivers(color='aqua')
-        # Draw parallels and meridians.
-        self.basemap.drawparallels(np.arange(int(gs_lat-20), int(gs_lat+20), 1.),labels=[1,0,0,0],fontsize=10)
-        self.basemap.drawmeridians(np.arange(int(gs_lon-20), int(gs_lon+20), 1.),labels=[0,0,0,1],fontsize=10)
-        self.basemap.drawmapboundary(fill_color='aqua')
-        # self.basemap.drawcounties() # seems slow
-        self.basemap.drawstates()
-        # Plot ground station location on map
-        xpt,ypt = self.basemap(gs_lon, gs_lat)
-        self.basemap.plot(xpt,ypt,'rx')
-        # Initialize balloon location arrays
-        self.xpt = []
-        self.ypt = []
-        
+        # If the map is loaded,
+        if self.map_view_loaded:
+            # Center map on ground station location
+            self.map_view.page().runJavaScript("setGroundStationLocation(" + str(gs_lat) + ", " + str(gs_lon) + ");")
+            self.map_view.page().runJavaScript("MAP.flyTo(new L.LatLng(" + str(gs_lat) + ", " + str(gs_lon) + "));")
+
+        return
+
+
+    def _initialize_plot(self):
+        # Create figure canvas for map and altitude graph
+        self.plot_canvas = FigureCanvas(Figure(layout="constrained"))
+        self.visualization_altitude_graph_grid.addWidget(self.plot_canvas)
+
         # Set altitude graph options
+        self.altitude_ax = self.plot_canvas.figure.subplots(1, 1)
         self.altitude_ax.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
         self.altitude_ax.minorticks_on()
         self.altitude_ax.grid()
@@ -205,7 +284,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.altitude_ax.set_xlabel("Time")
 
         # Draw figure
-        self.map_canvas.figure.canvas.draw()
+        self.plot_canvas.figure.canvas.draw()
+        return
 
 
     # Refresh the Borealis_comboBox_modem modem list from the Borealis website
@@ -896,20 +976,19 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         return
 
 
-    # Function to plot received coordinates on the position map and altitude graph
-    def _update_map_altitude(self, latest_time:float, lon:float, lat:float, alt:float):
+    # Function to update visualizations of received data (plot received coordinates on the position map and altitude graph)
+    def _update_visualizations(self, latest_time:float, lon:float, lat:float, alt:float):
         # Record balloon locations and plot on map
-        xpt,ypt = self.basemap(lon, lat)
-        self.xpt.append(xpt)
-        self.ypt.append(ypt)
-        self.basemap.plot(self.xpt,self.ypt,'bo-')
-        self.basemap.plot(self.xpt[-1],self.ypt[-1],'yo')
+        # xpt,ypt = self.basemap(lon, lat)
+        # self.xpt.append(xpt)
+        # self.ypt.append(ypt)
+        # self.basemap.plot(self.xpt,self.ypt,'bo-')
+        # self.basemap.plot(self.xpt[-1],self.ypt[-1],'yo')
 
         # Plot latest altitude on graph
         self.altitude_ax.plot(datetime.fromtimestamp(latest_time), alt, "bo-")
-        
         # Draw figure
-        self.map_canvas.figure.canvas.draw()
+        self.plot_canvas.figure.canvas.draw()
 
 
     # Function to update receivedUpdates tree widget
@@ -925,7 +1004,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         time_diff = self.Balloon.getTimeDiff()
         
         self._update_receivedUpdates_tree(time_str, "{:.0f}".format(time_diff), "{:.2f}".format(updateData['lat']), "{:.2f}".format(updateData['long']), "{:.1f}".format(updateData['alt']), str(updateData['comment']))
-        self._update_map_altitude(updateData['time'], updateData['long'], updateData['lat'], updateData['alt'])
+        self._update_visualizations(updateData['time'], updateData['long'], updateData['lat'], updateData['alt'])
 
         if self.tracking:
             # note that trackMath takes arguments as long, lat, altitude
@@ -966,6 +1045,59 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
     def _stop_updating(self):
         if self.updating:
             self.updating = False
+        return
+    
+
+    # Start QThread for serving HTTP requests for the embedded map
+    def _start_http_server(self):
+        # sets up the qt thread, and starts the thread
+        self.serve_http = True
+        self.statusBox.setPlainText("Starting embedded map's HTTP server")
+        print("Starting embedded map's HTTP server")
+        self.httpServerThread = QThread()
+        self.httpServerWorker = Worker_http()
+
+        self.httpServerWorker.moveToThread(self.httpServerThread)
+
+        self.httpServerThread.started.connect(self.httpServerWorker.serve_requests)
+
+        self.httpServerWorker.finished.connect(self.httpServerThread.quit)  # pycharm has bug, this is correct
+        self.httpServerWorker.finished.connect(self.httpServerWorker.deleteLater)  # https://youtrack.jetbrains.com/issue/PY-24183?_ga=2.240219907.1479555738.1625151876-2014881275.1622661488
+        self.httpServerThread.finished.connect(self.httpServerThread.deleteLater)
+
+        self.httpServerThread.start()
+        return
+
+
+    # Stop Qthread for getting position updates
+    def _stop_http_server(self):
+        if self.serve_http:
+            self.serve_http = False
+        return
+    
+
+
+class Worker_http(QObject):
+    # worker class to run the HTTP server for the embedded map without making the program hang
+    finished = pyqtSignal()
+
+    # Create handler class to set top-level directory to embedded_map
+    class Handler(http.server.SimpleHTTPRequestHandler):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, directory=str(Path(__file__).parent / "../embedded_map/"), **kwargs)
+
+    def serve_requests(self):
+        with socketserver.TCPServer(("127.0.0.1", MainWindow.http_port), self.Handler) as httpd:
+            # Set timeout for waiting on incoming requests
+            httpd.timeout = 1
+            httpd.handle_timeout
+            print("Serving local requests at port", MainWindow.http_port)
+            while MainWindow.serve_http:
+                httpd.handle_request()
+                # print("tmp")
+
+        print("Local HTTP server stopped")
+        self.finished.emit()  # same pycharm bug as above
         return
 
 
@@ -1024,7 +1156,7 @@ class Worker_tracking(QObject):
         last_Balloon_Coor = [0, 0, 0]
 
         self.calcSignal.connect(MainWindow.displayCalculations)
-        self.coor_signal.connect(MainWindow._update_map_altitude)
+        self.coor_signal.connect(MainWindow._update_visualizations)
 
         while MainWindow.tracking:
             Balloon_Coor = [MainWindow.latest_update["lat"], MainWindow.latest_update["long"], MainWindow.latest_update["alt"]]

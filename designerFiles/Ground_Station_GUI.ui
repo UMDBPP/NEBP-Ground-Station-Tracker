@@ -16,6 +16,90 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_5">
+    <item row="1" column="0">
+     <layout class="QGridLayout" name="status_grid">
+      <item row="0" column="1">
+       <widget class="QLabel" name="status_label">
+        <property name="text">
+         <string>Status Messages:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2" rowspan="2">
+       <widget class="Line" name="line_43">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QPlainTextEdit" name="statusBox">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>500</height>
+         </size>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="3">
+       <widget class="QTreeWidget" name="receivedUpdates_treeWidget">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <column>
+         <property name="text">
+          <string>Update Time</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Delta t (s)</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Latitude</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Longitude</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Altitude (m)</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>Comment</string>
+         </property>
+        </column>
+       </widget>
+      </item>
+      <item row="0" column="3">
+       <widget class="QLabel" name="receivedUpdates_label">
+        <property name="text">
+         <string>Received Updates:</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
     <item row="0" column="0">
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
@@ -762,29 +846,6 @@
             </property>
            </widget>
           </item>
-          <item row="6" column="3">
-           <widget class="QLineEdit" name="GSLongBox">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>-77.5</string>
-            </property>
-           </widget>
-          </item>
-          <item row="7" column="2">
-           <widget class="QLabel" name="GSAlt_label">
-            <property name="text">
-             <string>Ground Station Altitude (m): </string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-           </widget>
-          </item>
           <item row="6" column="2">
            <widget class="QLabel" name="GSLong_label">
             <property name="text">
@@ -795,11 +856,38 @@
             </property>
            </widget>
           </item>
-          <item row="8" column="2">
-           <widget class="QPushButton" name="GPSRequestButton">
-            <property name="text">
-             <string>Request Ground Station Location
-(GPS Shield Required)</string>
+          <item row="13" column="2" colspan="2">
+           <widget class="QTabWidget" name="visualization_tabWidget">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="tabPosition">
+             <enum>QTabWidget::North</enum>
+            </property>
+            <property name="currentIndex">
+             <number>0</number>
+            </property>
+            <widget class="QWidget" name="visualizationMap_tab">
+             <attribute name="title">
+              <string>Map</string>
+             </attribute>
+             <layout class="QGridLayout" name="visualization_map_grid"/>
+            </widget>
+            <widget class="QWidget" name="visualizationAltitudeGraph_tab">
+             <attribute name="title">
+              <string>Altitude Graph</string>
+             </attribute>
+             <layout class="QGridLayout" name="visualization_altitude_graph_grid"/>
+            </widget>
+           </widget>
+          </item>
+          <item row="9" column="2" colspan="2">
+           <widget class="Line" name="line_19">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
             </property>
            </widget>
           </item>
@@ -816,31 +904,12 @@
             </property>
            </widget>
           </item>
-          <item row="15" column="2" colspan="2">
-           <widget class="QWidget" name="tmp_widget" native="true">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
+          <item row="8" column="3">
+           <widget class="QPushButton" name="confirmGSLocationButton">
+            <property name="text">
+             <string>Set Ground Station Location</string>
             </property>
            </widget>
-          </item>
-          <item row="14" column="3">
-           <spacer name="verticalSpacer_7">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-            <property name="sizeType">
-             <enum>QSizePolicy::Preferred</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>10</height>
-             </size>
-            </property>
-           </spacer>
           </item>
           <item row="5" column="2">
            <widget class="QLabel" name="GSLat_label">
@@ -852,17 +921,34 @@
             </property>
            </widget>
           </item>
-          <item row="8" column="3">
-           <widget class="QPushButton" name="confirmGSLocationButton">
+          <item row="7" column="2">
+           <widget class="QLabel" name="GSAlt_label">
             <property name="text">
-             <string>Set Ground Station Location</string>
+             <string>Ground Station Altitude (m): </string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
             </property>
            </widget>
           </item>
-          <item row="9" column="2" colspan="2">
-           <widget class="Line" name="line_19">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
+          <item row="6" column="3">
+           <widget class="QLineEdit" name="GSLongBox">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>-77.5</string>
+            </property>
+           </widget>
+          </item>
+          <item row="8" column="2">
+           <widget class="QPushButton" name="GPSRequestButton">
+            <property name="text">
+             <string>Request Ground Station Location
+(GPS Shield Required)</string>
             </property>
            </widget>
           </item>
@@ -1326,90 +1412,6 @@
        </layout>
       </widget>
      </widget>
-    </item>
-    <item row="1" column="0">
-     <layout class="QGridLayout" name="status_grid">
-      <item row="0" column="2" rowspan="2">
-       <widget class="Line" name="line_43">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="3">
-       <widget class="QLabel" name="receivedUpdates_label">
-        <property name="text">
-         <string>Received Updates:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QPlainTextEdit" name="statusBox">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>500</height>
-         </size>
-        </property>
-        <property name="readOnly">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QLabel" name="status_label">
-        <property name="text">
-         <string>Status Messages:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="3">
-       <widget class="QTreeWidget" name="receivedUpdates_treeWidget">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <column>
-         <property name="text">
-          <string>Update Time</string>
-         </property>
-        </column>
-        <column>
-         <property name="text">
-          <string>Delta t (s)</string>
-         </property>
-        </column>
-        <column>
-         <property name="text">
-          <string>Latitude</string>
-         </property>
-        </column>
-        <column>
-         <property name="text">
-          <string>Longitude</string>
-         </property>
-        </column>
-        <column>
-         <property name="text">
-          <string>Altitude (m)</string>
-         </property>
-        </column>
-        <column>
-         <property name="text">
-          <string>Comment</string>
-         </property>
-        </column>
-       </widget>
-      </item>
-     </layout>
     </item>
    </layout>
   </widget>
