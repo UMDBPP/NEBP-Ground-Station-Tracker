@@ -226,6 +226,7 @@ class Balloon_Coordinates:
                     'lat':temp[0],
                     'long':temp[1],
                     'alt':temp[2],
+                    'service_type':self.service_type,
                     'comment':self.latest_comment[:int(self.latest_comment_length.value)]}
         except Exception as e:
             print(e)
@@ -235,6 +236,7 @@ class Balloon_Coordinates:
                     'lat':temp[0],
                     'long':temp[1],
                     'alt':temp[2],
+                    'service_type':self.service_type,
                     'comment':""}
     
 

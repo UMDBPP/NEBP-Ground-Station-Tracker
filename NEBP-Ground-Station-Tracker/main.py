@@ -245,7 +245,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
     # Initialize position map and altitude graph
-    def _initialize_map(self, gs_lon:float=-77.5, gs_lat:float=39.5):
+    def _initialize_map(self, gs_lon:float=-77.5, gs_lat:float=39.5, gs_alt:float=0):
         # If the map_view hasn't been created yet, make it
         if not self.map_view:
             # Create web view for Leaflet map
@@ -264,7 +264,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         # If the map is loaded,
         if self.map_view_loaded:
             # Center map on ground station location
-            self.map_view.page().runJavaScript("setGroundStationLocation(" + str(gs_lat) + ", " + str(gs_lon) + ");")
+            self.map_view.page().runJavaScript("setGroundStationLocation(" + str(gs_lat) + ", " + str(gs_lon) + ", " + str(gs_alt) + ");")
             self.map_view.page().runJavaScript("MAP.flyTo(new L.LatLng(" + str(gs_lat) + ", " + str(gs_lon) + "));")
 
         return
@@ -742,7 +742,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             self.statusBox.setPlainText("Ground station location entered successfully!")
             self.GSLocationSet = True
 
-            self._initialize_map(self.GSLong, self.GSLat)
+            self._initialize_map(self.GSLong, self.GSLat, self.GSAlt)
         except ValueError:
             print("numbers only for GPS location (decimal degrees)")
             self.statusBox.setPlainText("Invalid GPS location entered. Please only enter numbers")
@@ -977,13 +977,21 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
     # Function to update visualizations of received data (plot received coordinates on the position map and altitude graph)
-    def _update_visualizations(self, latest_time:float, lon:float, lat:float, alt:float):
-        # Record balloon locations and plot on map
-        # xpt,ypt = self.basemap(lon, lat)
-        # self.xpt.append(xpt)
-        # self.ypt.append(ypt)
-        # self.basemap.plot(self.xpt,self.ypt,'bo-')
-        # self.basemap.plot(self.xpt[-1],self.ypt[-1],'yo')
+    def _update_visualizations(self, latest_time:float, lon:float, lat:float, alt:float, service_type:str, comment:str):
+        # Check that the map is loaded
+        if self.map_view_loaded:
+            self.map_view.page().runJavaScript("addBalloonPosition(\"" 
+                    + time.strftime("%Y-%m-%d_%H-%M-%S_%z", time.localtime(latest_time)) + "\", "
+                    + str(lat) + ", "
+                    + str(lon) + ", "
+                    + str(alt) + ", \""
+                    + service_type + "\", \""
+                    + comment + "\""
+                    + ");"
+            )
+        else:
+            # Map does not seem to be loaded. Do some things to troubleshoot?
+            pass
 
         # Plot latest altitude on graph
         self.altitude_ax.plot(datetime.fromtimestamp(latest_time), alt, "bo-")
@@ -1004,7 +1012,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         time_diff = self.Balloon.getTimeDiff()
         
         self._update_receivedUpdates_tree(time_str, "{:.0f}".format(time_diff), "{:.2f}".format(updateData['lat']), "{:.2f}".format(updateData['long']), "{:.1f}".format(updateData['alt']), str(updateData['comment']))
-        self._update_visualizations(updateData['time'], updateData['long'], updateData['lat'], updateData['alt'])
+        self._update_visualizations(updateData['time'], updateData['long'], updateData['lat'], updateData['alt'], updateData['service_type'], updateData['comment'])
 
         if self.tracking:
             # note that trackMath takes arguments as long, lat, altitude
@@ -1156,7 +1164,6 @@ class Worker_tracking(QObject):
         last_Balloon_Coor = [0, 0, 0]
 
         self.calcSignal.connect(MainWindow.displayCalculations)
-        self.coor_signal.connect(MainWindow._update_visualizations)
 
         while MainWindow.tracking:
             Balloon_Coor = [MainWindow.latest_update["lat"], MainWindow.latest_update["long"], MainWindow.latest_update["alt"]]
@@ -1174,7 +1181,6 @@ class Worker_tracking(QObject):
             print(str(self.i) + " Distance " + str(distance) + " Azimuth: " + str(newAzimuth) + ", Elevation: " + str(newElevation))
 
             self.calcSignal.emit(distance, newAzimuth, newElevation)
-            self.coor_signal.emit(MainWindow.Balloon.get_latest_timestamp(), Balloon_Coor[1], Balloon_Coor[0], Balloon_Coor[2])
 
             MainWindow.GSArduino.move_position(newAzimuth, newElevation)
 
