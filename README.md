@@ -51,7 +51,6 @@ Features that might get added at some point (no guarantees)
  - Automatically fine-tuning the antenna pointing using radio direction finding
  - A way to save the map of received coordinates (as an image or something)
  - A server mode for the mapping so that clients on the same network can view the dynamically-updating map of received coordinates from their browser
- - Ability to select a different CSV or a previous log file for the test source from the GUI (rather than hardcoded to use data/test.csv)
 
 ## Known Issues
  - Program code, especially main.py, is not well organized and lacks documentation

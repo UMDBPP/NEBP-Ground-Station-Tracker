@@ -107,6 +107,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.updateWorker = None
         self.updating = False
 
+        self.refreshTestSourceFileList()
+
 
         self.Borealis_button_RefreshModem.clicked.connect(self.refreshModems)
         self.Borealis_button_ConfirmModem.clicked.connect(self.assignModem)
@@ -117,7 +119,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.APRS_Radio_button_refreshCOMPorts.clicked.connect(self.refreshCOMPortLists)
         self.APRS_Radio_button_ConnectRadio.clicked.connect(self.connectRadio_APRS_Radio)
         self.APRS_Radio_comboBox_COMPort.setCurrentIndex(self.comPortCounter - 1)
-        self.Test_Source_button_Confirm.clicked.connect(self.init_test_source)
+        self.Test_Source_comboBox_CSVFolder.currentTextChanged.connect(self.changeTestSourceFileCombobox)
+        self.Test_Source_button_Confirm.clicked.connect(self.start_test_source)
 
         self.Tracking_button_Refresh.clicked.connect(self.refreshTrackingStatus)
         self.Tracking_button_Test.clicked.connect(self.testTrackingStatus)
@@ -226,9 +229,50 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         return
 
 
+    # Refresh and update the test source csv file lists in the test source comboboxes
+    def refreshTestSourceFileList(self):
+        # Check if data directory exists
+        if((Path(__file__).parent / "../data/").is_dir()):
+            # Add data directory to folder combobox
+            if(self.Test_Source_comboBox_CSVFolder.findText("data") == -1):
+                self.Test_Source_comboBox_CSVFolder.addItem("data")
+            # Remove dummy file page from stacked widget
+            if(self.Test_Source_stackedWidget_CSVFile.currentWidget() == self.Test_Source_stackedWidget_CSVFile_dummyPage):
+                self.Test_Source_stackedWidget_CSVFile.removeWidget(self.Test_Source_stackedWidget_CSVFile_dummyPage)
+            # Check if test.csv exists
+            if((Path(__file__).parent / "../data/test.csv").exists()):
+                # Add test.csv to file combobox
+                if(self.Test_Source_comboBox_dataCSVFiles.findText("test.csv") == -1):
+                    self.Test_Source_comboBox_dataCSVFiles.addItem("test.csv")
+                    
+        # Check if logs directory exists
+        if((Path(__file__).parent / "../logs/").is_dir()):
+            # Add logs directory to folder combobox
+            if(self.Test_Source_comboBox_CSVFolder.findText("logs") == -1):
+                self.Test_Source_comboBox_CSVFolder.addItem("logs")
+            # Remove dummy file page from stacked widget
+            if(self.Test_Source_stackedWidget_CSVFile.currentWidget() == self.Test_Source_stackedWidget_CSVFile_dummyPage):
+                self.Test_Source_stackedWidget_CSVFile.removeWidget(self.Test_Source_stackedWidget_CSVFile_dummyPage)
+            # Check for CSV files in logs directory
+            csv_files = sorted((Path(__file__).parent / "../logs/").glob("*position_log.csv"))
+            if(len(csv_files) > 0):
+                for csv_file in csv_files:
+                    # Add each position log csv in logs directory to file combobox
+                    if(self.Test_Source_comboBox_logsCSVFiles.findText(csv_file.name) == -1):
+                        self.Test_Source_comboBox_logsCSVFiles.addItem(csv_file.name)
+
+
+    def changeTestSourceFileCombobox(self, text):
+        if(text == "data"):
+            self.Test_Source_stackedWidget_CSVFile.setCurrentWidget(self.Test_Source_stackedWidget_CSVFile_dataPage)
+        elif(text == "logs"):
+            self.Test_Source_stackedWidget_CSVFile.setCurrentWidget(self.Test_Source_stackedWidget_CSVFile_logsPage)
+
+
     # Debug test source replaying logged balloon positions
-    def init_test_source(self):
-        self.Balloon = Balloon_Coordinates_Test("TEST", int(self.Test_Source_spinBox_Period.value()))
+    def start_test_source(self):
+        filepath = Path(__file__).parent / ("../" + self.Test_Source_comboBox_CSVFolder.currentText() + "/" + self.Test_Source_stackedWidget_CSVFile.currentWidget().layout().itemAt(0).widget().currentText())
+        self.Balloon = Balloon_Coordinates_Test("TEST", filepath, int(self.Test_Source_spinBox_UpdatePeriod.value()))
         testStr = self.Balloon.print_info()
         self.statusBox.setPlainText(testStr)
         self._start_updating()

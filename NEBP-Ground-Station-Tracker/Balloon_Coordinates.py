@@ -263,9 +263,10 @@ class Balloon_Coordinates:
 
 # Debug class. Replays logged positions from test.log
 class Balloon_Coordinates_Test(Balloon_Coordinates):
-    def __init__(self, service_type:str, period=5) -> None:
+    def __init__(self, service_type:str, filepath=(Path(__file__).parent / "../data/test.csv"), period=5) -> None:
         super().__init__(service_type)
         self.coor_alt_list = []
+        self.filepath = filepath
         self.period = period
         self.start()
         return
@@ -273,17 +274,21 @@ class Balloon_Coordinates_Test(Balloon_Coordinates):
 
     # Load the list of positions from test.log
     def start(self):
-        # Create path from executing file (this file) directory to CSV file in data directory
-        dataPath = Path(__file__).parent / "../data/test.csv"
         try:
-            with dataPath.open() as file:
+            with self.filepath.open() as file:
                 coor_alt_CSV = csv.reader(file)
 
+                # Skip first line if it is a header
+                line = next(coor_alt_CSV)
+                if(line[0] != "Service_Type"):
+                    self.coor_alt_list.append([float(line[3]), float(line[4]), float(line[5]), line[2], (",".join(line[6:]))])
+                
+                # Loop through CSV lines
                 for line in coor_alt_CSV:
                     self.coor_alt_list.append([float(line[3]), float(line[4]), float(line[5]), line[2], (",".join(line[6:]))])
 
         except IOError:
-            print("Could not read file: ", dataPath.name)
+            print("Could not read file: ", self.filepath.name)
             # return -1
         
         super().start()
@@ -307,7 +312,7 @@ class Balloon_Coordinates_Test(Balloon_Coordinates):
                 # Check whether test point time is in the human-readable format
                 if len(str(coor_alt[3]).split('-')) > 1:
                     # Record time value
-                    self.latest_time.value = time.strptime(coor_alt[3], "%Y-%m-%d_%H-%M-%S_%z")
+                    self.latest_time.value = time.mktime(time.strptime(coor_alt[3], "%Y-%m-%d_%H-%M-%S_%z"))
                 else: # Otherwise, should be in Unix time
                     self.latest_time.value = float(coor_alt[3])
 
