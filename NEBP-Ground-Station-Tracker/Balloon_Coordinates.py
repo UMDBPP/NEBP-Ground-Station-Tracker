@@ -263,10 +263,13 @@ class Balloon_Coordinates:
 
 # Debug class. Replays logged positions from test.log
 class Balloon_Coordinates_Test(Balloon_Coordinates):
-    def __init__(self, service_type:str, filepath=(Path(__file__).parent / "../data/test.csv"), period=5) -> None:
+    def __init__(self, service_type:str, filepath_list:list[Path]|Path=(Path(__file__).parent / "../data/test.csv"), period=5) -> None:
         super().__init__(service_type)
         self.coor_alt_list = []
-        self.filepath = filepath
+        if(type(filepath_list) == Path):
+            self.filepath_list = [filepath_list]
+        else:
+            self.filepath_list = filepath_list
         self.period = period
         self.start()
         return
@@ -275,17 +278,20 @@ class Balloon_Coordinates_Test(Balloon_Coordinates):
     # Load the list of positions from test.log
     def start(self):
         try:
-            with self.filepath.open() as file:
-                coor_alt_CSV = csv.reader(file)
+            # Loop through the list of file paths
+            for filepath in self.filepath_list:
+                # Open each file
+                with filepath.open() as file:
+                    coor_alt_CSV = csv.reader(file)
 
-                # Skip first line if it is a header
-                line = next(coor_alt_CSV)
-                if(line[0] != "Service_Type"):
-                    self.coor_alt_list.append([float(line[3]), float(line[4]), float(line[5]), line[2], (",".join(line[6:]))])
-                
-                # Loop through CSV lines
-                for line in coor_alt_CSV:
-                    self.coor_alt_list.append([float(line[3]), float(line[4]), float(line[5]), line[2], (",".join(line[6:]))])
+                    # Skip first line if it is the header
+                    line = next(coor_alt_CSV)
+                    if(line[0] != "Service_Type"):
+                        self.coor_alt_list.append([float(line[3]), float(line[4]), float(line[5]), line[2], (",".join(line[6:]))])
+                    
+                    # Loop through CSV lines and append positions, times, and comments to the coor_alt_list
+                    for line in coor_alt_CSV:
+                        self.coor_alt_list.append([float(line[3]), float(line[4]), float(line[5]), line[2], (",".join(line[6:]))])
 
         except IOError:
             print("Could not read file: ", self.filepath.name)

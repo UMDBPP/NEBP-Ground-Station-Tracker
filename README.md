@@ -29,7 +29,7 @@ Features that are currently implemented and functional to some degree
    - APRS.fi's API
    - APRS-IS
    - APRS packets from an attached SDR or serial TNC
-   - A local CSV file of previously logged points
+   - Local CSV files of previously logged points
  - Logs received points to a local CSV file
  - Ability to manually and automatically control an NEBP automatic antenna pointing ground station
  - Maps received coordinates and plots received altitude vs time
@@ -55,9 +55,7 @@ Features that might get added at some point (no guarantees)
 ## Known Issues
  - Program code, especially main.py, is not well organized and lacks documentation
  - About page needs images
- - About page text does not resize or get a scroll wheel when program window shrinks
-   - Other text in the program (buttons and labels) also does not resize
-   - No minimum window size when using WSLg, window can be shrunk to practically nothing
+ - No minimum window size when using WSLg, window can be shrunk to practically nothing (probably a WSLg problem)
  - Terminology used throughout the program needs to be reviewed and standardized
    - Some confusion in terms after separating position updating and actual ground station pointing functionalities
    - Maybe use pointing for what's current referred to as tracking and tracking for what's currently referred as updating
@@ -67,11 +65,21 @@ Features that might get added at some point (no guarantees)
    - Inconsistently removes only the most recent position marker
  - Altitude graph resets when changing ground station location (should this be a bug or intended behavior?)
  - Altitude graph resizes as points are added and labels (particularly time labels) overlap
- - Qthreads in main.py don't seem to be emitting the finished signal, so program cleanup holds until it manually sends the quit signal
-   - Exception gets thrown in cleanup if the updates thread has already been stopped by the "End Connection to Selected Source" button or the HTTP server was never started (never switched to Location/Orientation tab)
  - Occasional crash due to "OSError: [Errno 98] Address already in use" when starting HTTP server after program restart
    - Probable fix: Need to make sure port bindings are finished being undone at program exit, add in a catch when starting the HTTP server and expose a GUI button to re-attempt binding, and/or use a random open ephemeral port for the server
  - Map overlay layers don't update until after the flyTo animation from setting the ground station location finishes (leaflet bug?)
  - Repeatedly switching to the map tab, either from the altitude graph or from a different page, can cause the map view to grow vertically (QWebEngineView problem?)
  - sipPyTypeDict() deprecation warnings show in terminal on program start (QWebEngineView problem?)
- 
+ - Balloon positions plotted on the map show up on layer control as individual entries
+ - Ground station location and balloon positions use the same markers on the map
+   - Need to get/make custom icons to use. Can also use different icons for each data source to differentiate them on the map
+ - Balloon Coordinates test function freezes the program and wastes the first received points
+   - Need to make the testing asynchronous in some way to fix. Spin off a new thread for it and send back a signal with the result?
+ - Active sources status field is not implemented
+   - Need some kind of health checker thread for the sources. Combine with new thread for testing?
+ - Active sources view is only implemented for the test source
+ - Test source could use some kind of indicator for when it hits the end of a file and when it restarts the coordinates queue
+ - Received Updates view might benefit from adding a field for when the program received the update, not just the timestamp from the update itself
+ - Uncaught syntax errors occasionally reported by Javascript
+ - Javascript errors from the map are not printed verbosely enough to be usable
+   - Probably need to redirect the embedded map's console output to stdout/stderr

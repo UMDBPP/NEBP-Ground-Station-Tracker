@@ -107,8 +107,10 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.updateWorker = None
         self.updating = False
 
-        self.refreshTestSourceFileList()
+        self.httpServerThread = None
 
+        self.refreshTestSourceFileList()
+        self.testSourceFileQueue = []
 
         self.Borealis_button_RefreshModem.clicked.connect(self.refreshModems)
         self.Borealis_button_ConfirmModem.clicked.connect(self.assignModem)
@@ -120,6 +122,9 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.APRS_Radio_button_ConnectRadio.clicked.connect(self.connectRadio_APRS_Radio)
         self.APRS_Radio_comboBox_COMPort.setCurrentIndex(self.comPortCounter - 1)
         self.Test_Source_comboBox_CSVFolder.currentTextChanged.connect(self.changeTestSourceFileCombobox)
+        self.Test_Source_button_RefreshFiles.clicked.connect(self.refreshTestSourceFileList)
+        self.Test_Source_button_QueueCSV.clicked.connect(self.queueTestSourceFile)
+        self.Test_Source_button_RemoveLastCSV.clicked.connect(self.popTestSourceFile)
         self.Test_Source_button_Confirm.clicked.connect(self.start_test_source)
 
         self.Tracking_button_Refresh.clicked.connect(self.refreshTrackingStatus)
@@ -212,67 +217,154 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         
         # Stop updates thread
         self._stop_updating()
-        if self.updateThread and self.updateThread.isRunning():
-            print("Waiting for position update thread to stop")
-            # Give the thread 5 seconds to stop itself
-            if not self.updateThread.wait(5000) and self.updateThread.isRunning():
-                # If it hasn't stopped in 5 seconds, try manually quiting the thread
-                print("Position update thread hasn't stopped. Manually sending quit command...")
-                self.updateThread.quit()
-                if not self.updateThread.wait(5000) and self.updateThread.isRunning():
-                    # If it hasn't stopped in 5 seconds, terminate the thread
-                    print("Position update thread hasn't stopped. Terminating...")
-                    self.updateThread.terminate()
-                    # Give it another 5 seconds to terminate
-                    if not self.updateThread.wait(5000) and self.updateThread.isRunning():
-                        print("Error stopping position update thread. Position update thread still running at program exit")
+        # if self.updateThread and self.updateThread.isRunning():
+        #     print("Waiting for position update thread to stop")
+        #     # Give the thread 5 seconds to stop itself
+        #     if not self.updateThread.wait(5000) and self.updateThread.isRunning():
+        #         # If it hasn't stopped in 5 seconds, try manually quiting the thread
+        #         print("Position update thread hasn't stopped. Manually sending quit command...")
+        #         self.updateThread.quit()
+        #         if not self.updateThread.wait(5000) and self.updateThread.isRunning():
+        #             # If it hasn't stopped in 5 seconds, terminate the thread
+        #             print("Position update thread hasn't stopped. Terminating...")
+        #             self.updateThread.terminate()
+        #             # Give it another 5 seconds to terminate
+        #             if not self.updateThread.wait(5000) and self.updateThread.isRunning():
+        #                 print("Error stopping position update thread. Position update thread still running at program exit")
         return
 
 
     # Refresh and update the test source csv file lists in the test source comboboxes
     def refreshTestSourceFileList(self):
+        # Get last folder and file text to try to go back to after refreshing
+        last_folder_text = self.Test_Source_comboBox_CSVFolder.currentText()
+        last_file_text = self.Test_Source_stackedWidget_CSVFile.currentWidget().layout().itemAt(0).widget().currentText()
+        # Clear folder and file comboboxes
+        self.Test_Source_comboBox_CSVFolder.clear()
+        self.Test_Source_comboBox_dataCSVFiles.clear()
+        self.Test_Source_comboBox_logsCSVFiles.clear()
+
         # Check if data directory exists
         if((Path(__file__).parent / "../data/").is_dir()):
             # Add data directory to folder combobox
-            if(self.Test_Source_comboBox_CSVFolder.findText("data") == -1):
-                self.Test_Source_comboBox_CSVFolder.addItem("data")
-            # Remove dummy file page from stacked widget
+            self.Test_Source_comboBox_CSVFolder.addItem("data")
+            # If the stacked widget is on the dummy file page, change to the data file page
             if(self.Test_Source_stackedWidget_CSVFile.currentWidget() == self.Test_Source_stackedWidget_CSVFile_dummyPage):
-                self.Test_Source_stackedWidget_CSVFile.removeWidget(self.Test_Source_stackedWidget_CSVFile_dummyPage)
+                self.Test_Source_stackedWidget_CSVFile.setCurrentWidget(self.Test_Source_stackedWidget_CSVFile_dataPage)
             # Check if test.csv exists
             if((Path(__file__).parent / "../data/test.csv").exists()):
                 # Add test.csv to file combobox
-                if(self.Test_Source_comboBox_dataCSVFiles.findText("test.csv") == -1):
-                    self.Test_Source_comboBox_dataCSVFiles.addItem("test.csv")
+                self.Test_Source_comboBox_dataCSVFiles.addItem("test.csv")
                     
         # Check if logs directory exists
         if((Path(__file__).parent / "../logs/").is_dir()):
             # Add logs directory to folder combobox
-            if(self.Test_Source_comboBox_CSVFolder.findText("logs") == -1):
-                self.Test_Source_comboBox_CSVFolder.addItem("logs")
-            # Remove dummy file page from stacked widget
+            self.Test_Source_comboBox_CSVFolder.addItem("logs")
+            # If the stacked widget is on the dummy file page, change to the logs file page
             if(self.Test_Source_stackedWidget_CSVFile.currentWidget() == self.Test_Source_stackedWidget_CSVFile_dummyPage):
-                self.Test_Source_stackedWidget_CSVFile.removeWidget(self.Test_Source_stackedWidget_CSVFile_dummyPage)
+                self.Test_Source_stackedWidget_CSVFile.setCurrentWidget(self.Test_Source_stackedWidget_CSVFile_logsPage)
             # Check for CSV files in logs directory
             csv_files = sorted((Path(__file__).parent / "../logs/").glob("*position_log.csv"))
             if(len(csv_files) > 0):
                 for csv_file in csv_files:
                     # Add each position log csv in logs directory to file combobox
-                    if(self.Test_Source_comboBox_logsCSVFiles.findText(csv_file.name) == -1):
-                        self.Test_Source_comboBox_logsCSVFiles.addItem(csv_file.name)
+                    self.Test_Source_comboBox_logsCSVFiles.addItem(csv_file.name)
+                # Sort file combobox
+                self.Test_Source_comboBox_logsCSVFiles.model().sort(0)
+        
+        # Try to go back to previously selected folder and file after refreshing
+        # If both the folder and file texts aren't empty and the folder is in the refreshed list
+        if((last_folder_text != "") and (last_file_text != "") and (self.Test_Source_comboBox_CSVFolder.findText(last_folder_text) != -1)):
+            # If the folder was "data" and the file is in the refreshed list
+            if((last_folder_text == "data") and (self.Test_Source_comboBox_dataCSVFiles.findText(last_file_text) != -1)):
+                self.Test_Source_comboBox_CSVFolder.setCurrentText(last_folder_text)
+                self.Test_Source_comboBox_dataCSVFiles.setCurrentText(last_file_text)
+            # If the folder was "logs" and the file is in the refreshed list
+            elif((last_folder_text == "logs") and (self.Test_Source_comboBox_logsCSVFiles.findText(last_file_text) != -1)):
+                self.Test_Source_comboBox_CSVFolder.setCurrentText(last_folder_text)
+                self.Test_Source_comboBox_logsCSVFiles.setCurrentText(last_file_text)
 
 
+    # Add folder/file from comboboxes to test source file queue
+    def queueTestSourceFile(self):
+        # Get the test source treewidgetitem from the active sources treewidget
+        testSourceTreeWidgetItem = self.activeSources_treeWidget.findItems("Test_Source", Qt.MatchFlag(0), 0) # Match text exactly with items in column 0
+        
+        # Check whether test source treewidgetitem is in the active sources treewidget
+        if(len(testSourceTreeWidgetItem) == 0):
+            # Add test source treewidgetitem to active sources treewidget
+            testSourceTreeWidgetItem = QtWidgets.QTreeWidgetItem(self.activeSources_treeWidget, ["Test_Source", "Not implemented"], 0)
+            testSourceTreeWidgetItem.setExpanded(True)
+        elif(len(testSourceTreeWidgetItem) == 1):
+            testSourceTreeWidgetItem = testSourceTreeWidgetItem[0]
+        else:
+            # Multiple test sources in the active sources tree, print a message and return
+            print("Multiple test sources in the active sources tree. Not queuing file")
+            return
+
+        # Assemble file path from current combobox text
+        filepath_short = self.Test_Source_comboBox_CSVFolder.currentText() + "/" + self.Test_Source_stackedWidget_CSVFile.currentWidget().layout().itemAt(0).widget().currentText()
+        filepath = Path(__file__).parent / ("../" + self.Test_Source_comboBox_CSVFolder.currentText() + "/" + self.Test_Source_stackedWidget_CSVFile.currentWidget().layout().itemAt(0).widget().currentText())
+
+        # Append filepath to queue and add test source treewidgetitem child item
+        self.testSourceFileQueue.append(filepath)
+        new_child_item = QtWidgets.QTreeWidgetItem([str(filepath_short), ""], 0)
+        testSourceTreeWidgetItem.addChild(new_child_item)
+        (testSourceTreeWidgetItem.child(testSourceTreeWidgetItem.childCount() - 1)).setFirstColumnSpanned(True)
+
+
+    # Remove the last folder/file from the test source file queue
+    def popTestSourceFile(self):
+        skip_treewidgetitem = False
+        # Get the test source treewidgetitem from the active sources treewidget
+        testSourceTreeWidgetItem = self.activeSources_treeWidget.findItems("Test_Source", Qt.MatchFlag(0), 0) # Match text exactly with items in column 0
+        
+        # Check whether test source treewidgetitem is in the active sources treewidget
+        if(len(testSourceTreeWidgetItem) == 0):
+            # If there isn't a test source treewidgetitem, skip trying to delete from it
+            skip_treewidgetitem = True
+        elif(len(testSourceTreeWidgetItem) == 1):
+            testSourceTreeWidgetItem = testSourceTreeWidgetItem[0]
+        else:
+            # Multiple test sources in the active sources tree, print a message and return
+            print("Multiple test sources in the active sources tree. Not queuing file")
+            return
+
+        # Pop from the queue and remove and delete the last test source treewidgetitem child item
+        if(len(self.testSourceFileQueue) > 0):
+            self.testSourceFileQueue.pop()
+        if(not skip_treewidgetitem):
+            tmp = testSourceTreeWidgetItem.takeChild(testSourceTreeWidgetItem.childCount() - 1)
+            del tmp
+
+
+    # Change test source file stacked widget page based on the text of the folder combobox
     def changeTestSourceFileCombobox(self, text):
         if(text == "data"):
             self.Test_Source_stackedWidget_CSVFile.setCurrentWidget(self.Test_Source_stackedWidget_CSVFile_dataPage)
         elif(text == "logs"):
             self.Test_Source_stackedWidget_CSVFile.setCurrentWidget(self.Test_Source_stackedWidget_CSVFile_logsPage)
-
+        elif(text == ""):
+            self.Test_Source_stackedWidget_CSVFile.setCurrentWidget(self.Test_Source_stackedWidget_CSVFile_dummyPage)
+        else:
+            # Current folder combobox text is something unexpected, print a message and set file combobox to the dummy page
+            print("Unexpected text in Test Source CSV folder combobox")
+            self.Test_Source_stackedWidget_CSVFile.setCurrentWidget(self.Test_Source_stackedWidget_CSVFile_dummyPage)
+            
 
     # Debug test source replaying logged balloon positions
     def start_test_source(self):
-        filepath = Path(__file__).parent / ("../" + self.Test_Source_comboBox_CSVFolder.currentText() + "/" + self.Test_Source_stackedWidget_CSVFile.currentWidget().layout().itemAt(0).widget().currentText())
-        self.Balloon = Balloon_Coordinates_Test("TEST", filepath, int(self.Test_Source_spinBox_UpdatePeriod.value()))
+        if type(self.Balloon) is not type(None):
+            self._stop_updating()
+            del self.Balloon
+        # If the file queue is empty, pull the filepath from the current combobox texts
+        if(len(self.testSourceFileQueue) == 0):
+            # Get the path to the CSV file from the currently viewed combobox texts
+            filepath = Path(__file__).parent / ("../" + self.Test_Source_comboBox_CSVFolder.currentText() + "/" + self.Test_Source_stackedWidget_CSVFile.currentWidget().layout().itemAt(0).widget().currentText())
+            self.Balloon = Balloon_Coordinates_Test("TEST", filepath, int(self.Test_Source_spinBox_UpdatePeriod.value()))
+        else:
+            # Initialize the test source with the file queue
+            self.Balloon = Balloon_Coordinates_Test("TEST", self.testSourceFileQueue, int(self.Test_Source_spinBox_UpdatePeriod.value()))
         testStr = self.Balloon.print_info()
         self.statusBox.setPlainText(testStr)
         self._start_updating()
@@ -441,9 +533,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             self.modemAssigned = True
             print(self.Borealis_comboBox_modem.currentText())        
             if type(self.Balloon) is not type(None):
-                self.Balloon.stop()
-                time.sleep(1)
-            del self.Balloon
+                self._stop_updating()
+                del self.Balloon
             self.Balloon = Balloon_Coordinates_Borealis(service_type="Borealis",
                                                         modem=str(self.Borealis_comboBox_modem.currentText()).split()[0])
             testStr = self.Balloon.print_info()
@@ -525,9 +616,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 print("Assigned callsign: " + str(self.APRS_fi_comboBox_Callsign.currentText()))
                 if(self.APRSfiKeyAssigned):
                     if type(self.Balloon) is not type(None):
-                        self.Balloon.stop()
-                        time.sleep(1)
-                    del self.Balloon
+                        self._stop_updating()
+                        del self.Balloon
                     self.Balloon = Balloon_Coordinates_APRS_fi(service_type="APRS.fi",
                                                                callsign=self.APRS_fi_comboBox_Callsign.currentText(),
                                                                apikey=self.APRS_fi_lineEdit_APIKey.text())
@@ -543,9 +633,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.callsignAssigned = True
                 print("Assigned callsign: " + str(self.APRS_IS_comboBox_Callsign.currentText()))
                 if type(self.Balloon) is not type(None):
-                    self.Balloon.stop()
-                    time.sleep(1)
-                del self.Balloon
+                    self._stop_updating()
+                    del self.Balloon
                 self.Balloon = Balloon_Coordinates_APRS_IS(service_type="APRS-IS",
                                                            callsign=self.APRS_IS_comboBox_Callsign.currentText())
                 testStr = self.Balloon.print_info()
@@ -560,9 +649,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.callsignAssigned = True
                 print("Assigned callsign: " + str(self.APRS_Radio_comboBox_Callsign.currentText()))
                 if type(self.Balloon) is not type(None):
-                    self.Balloon.stop()
-                    time.sleep(1)
-                del self.Balloon
+                    self._stop_updating()
+                    del self.Balloon
                 self.Balloon = Balloon_Coordinates_APRS_SDR(service_type="APRS-SDR",
                                                            callsign=self.APRS_Radio_comboBox_Callsign.currentText())
                 testStr = self.Balloon.print_info()
@@ -578,9 +666,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                 print("Assigned callsign: " + str(self.APRS_Radio_comboBox_Callsign.currentText()))
                 if self.radioConnected and self.baudrate > 0:
                     if type(self.Balloon) is not type(None):
-                        self.Balloon.stop()
-                        time.sleep(1)
-                    del self.Balloon
+                        self._stop_updating()
+                        del self.Balloon
                     self.Balloon = Balloon_Coordinates_APRS_SerialTNC(service_type="APRS Serial TNC",
                                                                       callsign=self.APRS_Radio_comboBox_Callsign.currentText(),
                                                                       port=self.radio_port,
@@ -608,9 +695,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Assigned APRS.fi API key: " + str(self.APRS_fi_lineEdit_APIKey.text()))
             if(self.callsignAssigned):
                 if type(self.Balloon) is not type(None):
-                    self.Balloon.stop()
-                    time.sleep(1)
-                del self.Balloon
+                    self._stop_updating()
+                    del self.Balloon
                 self.Balloon = Balloon_Coordinates_APRS_fi(service_type="APRS.fi",
                                                            callsign=self.APRS_fi_comboBox_Callsign.currentText(),
                                                            apikey=self.APRS_fi_lineEdit_APIKey.text())
@@ -636,9 +722,8 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
                     print("Starting balloon position updater")
                     self.statusBox.setPlainText("Starting balloon position updater")
                     if type(self.Balloon) is not type(None):
-                        self.Balloon.stop()
-                        time.sleep(1)
-                    del self.Balloon
+                        self._stop_updating()
+                        del self.Balloon
                     self.Balloon = Balloon_Coordinates_APRS_SerialTNC(service_type="APRS Serial TNC",
                                                                       callsign=self.APRS_Radio_comboBox_Callsign.currentText(),
                                                                       port=self.radio_port,
@@ -1043,11 +1128,6 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         self.plot_canvas.figure.canvas.draw()
 
 
-    # Function to update receivedUpdates tree widget
-    def _update_receivedUpdates_tree(self, update_time:str, time_diff:str, lat:str, long:str, alt:str, comment:str):
-        self.receivedUpdates_treeWidget.scrollToItem(QTreeWidgetItem(self.receivedUpdates_treeWidget, [update_time, time_diff, lat, long, alt, comment]))
-
-
     # Function to update local updates dict and run other GUI updates
     def _receive_updates(self, updateData:dict):
         self.latest_update = updateData
@@ -1055,7 +1135,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         time_str = "{:02.0f}:{:02.0f}:{:02.0f}".format(latest_tm[3], latest_tm[4], latest_tm[5])
         time_diff = self.Balloon.getTimeDiff()
         
-        self._update_receivedUpdates_tree(time_str, "{:.0f}".format(time_diff), "{:.2f}".format(updateData['lat']), "{:.2f}".format(updateData['long']), "{:.1f}".format(updateData['alt']), str(updateData['comment']))
+        self.receivedUpdates_treeWidget.scrollToItem(QTreeWidgetItem(self.receivedUpdates_treeWidget, [time_str, "{:.0f}".format(time_diff), "{:.3f}".format(updateData['lat']), "{:.3f}".format(updateData['long']), "{:.1f}".format(updateData['alt']), str(updateData['comment'])]))
         self._update_visualizations(updateData['time'], updateData['long'], updateData['lat'], updateData['alt'], updateData['service_type'], updateData['comment'])
 
         if self.tracking:
@@ -1097,6 +1177,21 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
     def _stop_updating(self):
         if self.updating:
             self.updating = False
+            if self.updateThread and self.updateThread.isRunning():
+                print("Waiting for position update thread to stop")
+                # Give the thread 5 seconds to stop itself
+                if not self.updateThread.wait(5000) and self.updateThread.isRunning():
+                    # If it hasn't stopped in 5 seconds, try manually quiting the thread
+                    print("Position update thread hasn't stopped. Manually sending quit command...")
+                    self.updateThread.quit()
+                    if not self.updateThread.wait(5000) and self.updateThread.isRunning():
+                        # If it hasn't stopped in 5 seconds, terminate the thread
+                        print("Position update thread hasn't stopped. Terminating...")
+                        self.updateThread.terminate()
+                        # Give it another 5 seconds to terminate
+                        if not self.updateThread.wait(5000) and self.updateThread.isRunning():
+                            print("Error stopping position update thread. Position update thread still running at program exit")
+        
         return
     
 
@@ -1121,7 +1216,7 @@ class Window(QtWidgets.QMainWindow, Ui_MainWindow):
         return
 
 
-    # Stop Qthread for getting position updates
+    # Stop Qthread serving HTTP requests
     def _stop_http_server(self):
         if self.serve_http:
             self.serve_http = False
@@ -1150,6 +1245,8 @@ class Worker_http(QObject):
 
         print("Local HTTP server stopped")
         self.finished.emit()  # same pycharm bug as above
+        # Emitting the finished signal above doesn't seem to work until the thread is manually quit
+        self.thread().quit()
         return
 
 
@@ -1157,10 +1254,13 @@ class Worker_http(QObject):
 class Worker_updates(QObject):
     # worker class to receive updates without making the GUI hang
     finished = pyqtSignal()
-
     update_signal = pyqtSignal(dict)
 
-    i = 0
+
+    def __init__(self):
+        super().__init__()
+        self.i = 0
+
 
     def receive_updates(self):
         # checks for updated position every second
@@ -1182,12 +1282,12 @@ class Worker_updates(QObject):
 
             #============================
 
-
         print("All done!")
         print(str(self.i) + " location updates processed")
         self.finished.emit()  # same pycharm bug as above
+        # Emitting the finished signal above doesn't seem to work until the thread is manually quit
+        self.thread().quit()
         return
-    pass
 
 
 
@@ -1237,6 +1337,8 @@ class Worker_tracking(QObject):
         print("All done!")
         print(str(self.i) + " location updates processed")
         self.finished.emit()  # same pycharm bug as above
+        # Emitting the finished signal above doesn't seem to work until the thread is manually quit
+        self.thread().quit()
         return
 
 
@@ -1348,6 +1450,8 @@ class Worker_tracking(QObject):
         print("All done tracking with predictions! :)")
         calculations.close()
         self.finished.emit()
+        # Emitting the finished signal above doesn't seem to work until the thread is manually quit
+        self.thread().quit()
         return
 
 
